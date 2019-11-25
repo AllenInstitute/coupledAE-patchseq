@@ -1,5 +1,5 @@
 #Model updated for TF2.0
-#python -m ae_model_train --batchsize 100 --cvfold 0 --alpha_T 1.0 --alpha_E 1.0 --alpha_M 1.0 --lambda_TE 0.0 --latent_dim 3 --n_epochs 2000 --n_steps_per_epoch 500 --run_iter 0 --model_id 'v1' --exp_name 'TE_Patchseq_Bioarxiv'
+#python -m ae_model_train --batchsize 100 --cvfold 0 --alpha_T 1.0 --alpha_E 1.0 --alpha_M 1.0 --lambda_TE 0.0 --latent_dim 3 --n_epochs 2000 --n_steps_per_epoch 500 --ckpt_save_freq 100 --run_iter 0 --model_id 'v1' --exp_name 'TE_Patchseq_Bioarxiv'
 import argparse
 import os
 import pdb
@@ -31,6 +31,7 @@ parser.add_argument("--latent_dim",        default=3,                       type
 
 parser.add_argument("--n_epochs",          default=1500,                    type=int,     help="Number of epochs to train")
 parser.add_argument("--n_steps_per_epoch", default=500,                     type=int,     help="Number of model updates per epoch")
+parser.add_argument("--ckpt_save_freq",    default=100,                     type=int,     help="Frequency of checkpoint saves")
 
 parser.add_argument("--run_iter",          default=0,                       type=int,     help="Run-specific id")
 parser.add_argument("--model_id",          default='v1',                    type=str,     help="Model-specific id")
@@ -85,7 +86,7 @@ class Datagen():
 
 def main(batchsize=200, cvfold=0,
          alpha_T=1.0,alpha_E=1.0,alpha_M=1.0,lambda_TE=0.0,
-         latent_dim=3,n_epochs=1500, n_steps_per_epoch=500,
+         latent_dim=3,n_epochs=1500, n_steps_per_epoch=500, ckpt_save_freq=100,
          run_iter=0, model_id='v1', exp_name='TE_Patchseq_Bioarxiv'):
     
     dir_pth = set_paths(exp_name=exp_name)
@@ -217,7 +218,36 @@ def main(batchsize=200, cvfold=0,
                     writer.writerow(train_log_name+val_log_name)
                 writer.writerow(train_log_values+val_log_values)
 
-    #Save model weights
+            if epoch % ckpt_save_freq == 0:
+                #Save model weights
+                model_TE.save_weights(dir_pth['checkpoint']+fileid+'_ckptep_'+str(epoch)+'-weights.h5')
+
+                #Save reconstructions and results for the full dataset:
+                all_T_dat = tf.constant(D['T_dat'])
+                all_E_dat = D['E_dat']
+                all_M_dat = D['M_dat']
+                all_E_dat = tf.constant(np.concatenate([all_E_dat, all_M_dat.reshape(all_M_dat.size, 1)], axis=1))
+                zT, zE, XrT, XrE = model_TE((all_T_dat, all_E_dat), training=False)
+                XrE_from_XT = model_TE.decoder_E(zT, training=False)
+                XrT_from_XE = model_TE.decoder_T(zE, training=False)
+
+                savemat = {'zT': zT.numpy(),
+                        'zE': zE.numpy(),
+                        'XE': XE.numpy(),
+                        'XrE': XrE.numpy(),
+                        'XrE_from_XT': XrE_from_XT.numpy(),
+                        'XT': XT.numpy(),
+                        'XrT': XrT.numpy(),
+                        'XrT_from_XE': XrT_from_XE.numpy(),
+                        'train_ind': train_ind,
+                        'val_ind': val_ind,
+                        'test_ind': testset,
+                        'cvset': cvset}
+
+                sio.savemat(dir_pth['checkpoint']+fileid+'_ckptep_'+str(epoch)+'-summary.mat', savemat, do_compression=True)
+
+
+    #Save model weights on exit
     model_TE.save_weights(dir_pth['result']+fileid+'-weights.h5')
 
     #Save reconstructions and results for the full dataset:
