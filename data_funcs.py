@@ -4,9 +4,10 @@ import feather
 import pandas as pd
 import timeit
 import pdb
+from sklearn.model_selection import StratifiedKFold
 
-def create_color_ref():
-    '''Used to generate `cluster_colors` from the FACS reference dataset'''
+def create_color_ref(ps_Tcat_ann):
+    '''Used to generate `cluster_colors` from the FACS reference dataset. Unused function, for record keeping only.'''
     D = sio.loadmat('/Users/fruity/Dropbox/AllenInstitute/CellTypes/dat/raw/Mouse-V1-ALM-20180520_cpmtop10k_cpm.mat',squeeze_me=True)
     ctype_list = []
     col_list = []
@@ -16,7 +17,7 @@ def create_color_ref():
     D = pd.DataFrame({'celltype':ctype_list,'cluster_color':col_list})
     D = D.loc[D['celltype'].isin(np.unique(ps_Tcat_ann['topLeaf_label'].values))]
     D = D.reset_index(drop=True)
-    D.to_csv(base_path + 'type_color_reference.csv',index=False)
+    D.to_csv('type_color_reference.csv',index=False)
     return
 
 def reorder_ps_TE(ps_T_dat,ps_T_ann,ps_E_dat):
@@ -148,7 +149,7 @@ def TEM_dataset(matdict):
 
     TEM_matdict['E_dat']           = matdict['E_dat'][keep_cells,:]     
     TEM_matdict['E_spec_id_label'] = matdict['E_spec_id_label'][keep_cells]
-    TEM_matdict['E_ispaired']      = matdict['E_ispaired'][keep_cells]  
+    TEM_matdict['E_ispaired']      = matdict['E_ispaired'][keep_cells]
 
     TEM_matdict['M_dat']           = matdict['M_dat'][keep_cells]
 
@@ -158,3 +159,71 @@ def TEM_dataset(matdict):
     print('{:d} remaining samples'.format(np.size(TEM_matdict['M_dat'])))
     print('{:d} remaining T-types '.format(np.size(np.unique(TEM_matdict['cluster']))))
     return TEM_matdict
+
+
+def TEM_rem_lowsampled_classes(matdict,count_threshold=10):
+    """Removes poorly sampled classes. Assumes that T,E and M datasets have completely matched rows.
+    Arguments:
+        matdict {dict} -- output of TEM_dataset()
+        count_threshold {int} -- classes with less than this number of samples are removed)
+    Returns:
+        matdict {dict} -- similar to output of TEM_dataset()
+    """
+
+    unique, counts = np.unique(matdict['cluster'], return_counts=True)
+    keep_cells = np.isin(matdict['cluster'],unique[counts>=count_threshold])
+    print('Keeping {:d} out of {:d} cells'.format(np.sum(keep_cells),np.size(keep_cells)))
+
+    matdict['T_dat']           = matdict['T_dat'][keep_cells,:]
+    matdict['T_spec_id_label'] = matdict['T_spec_id_label'][keep_cells]
+    matdict['T_ispaired']      = matdict['T_ispaired'][keep_cells]
+    matdict['cluster']         = matdict['cluster'][keep_cells]       
+    matdict['clusterID']       = matdict['clusterID'][keep_cells]
+    matdict['cluster_color']   = matdict['cluster_color'][keep_cells]
+    matdict['sample_id']       = matdict['sample_id'][keep_cells] 
+
+    matdict['E_dat']           = matdict['E_dat'][keep_cells,:]     
+    matdict['E_spec_id_label'] = matdict['E_spec_id_label'][keep_cells]
+    matdict['E_ispaired']      = matdict['E_ispaired'][keep_cells]  
+
+    matdict['M_dat']           = matdict['M_dat'][keep_cells]
+
+    assert np.array_equal(matdict['E_spec_id_label'],matdict['E_spec_id_label']),'Sample order is not the same across datasets'
+    assert np.size(matdict['M_dat'])==np.shape(matdict['T_dat'])[0],'Dataset sizes are mismatched'
+    assert np.size(matdict['M_dat'])==np.shape(matdict['E_dat'])[0],'Dataset sizes are mismatched'
+    print('{:d} remaining samples'.format(np.size(matdict['M_dat'])))
+    print('{:d} remaining T-types '.format(np.size(np.unique(matdict['cluster']))))
+
+    return matdict
+
+def TEM_get_splits(matdict):
+    """Creates 1 test set, and from the remaining cells creates 9 other sets for 9-fold cross validation
+    Data in the test and validation sets is stratified based on T cluster labels.
+    
+    Returns:
+        cvset -- list with 9 cross-validation folds. Train indices: cvset[0]['train'] and Validation indices: cvset[0]['val']
+        testset -- indices for test cells
+    Arguments:
+        matdict -- output of TEM_rem_lowsampled_classes().
+    """
+    assert np.array_equal(matdict['E_spec_id_label'],matdict['E_spec_id_label']),'Sample order is not the same across datasets'
+    assert np.size(matdict['M_dat'])==np.shape(matdict['T_dat'])[0],'Dataset sizes are mismatched'
+    assert np.size(matdict['M_dat'])==np.shape(matdict['E_dat'])[0],'Dataset sizes are mismatched'
+    X = matdict['T_dat']
+    y = matdict['cluster']
+
+    #Split data into 10 folds first deterministically.
+    skf = StratifiedKFold(n_splits=10, random_state=0)
+    ind_dict = [{'train':train_ind, 'val':val_ind} for train_ind, val_ind in skf.split(X, y)]
+
+    #Define the test set
+    testset = ind_dict[0]['val']
+
+    #Remove test cells from remaining folds (expected to overlap only with the training cells).
+    cvset = []
+    for i in range(1,len(ind_dict),1):
+        ind_dict[i]['train'] = np.setdiff1d(ind_dict[i]['train'],testset)
+        ind_dict[i]['val'] = np.setdiff1d(ind_dict[i]['val'],testset)
+        cvset.append(ind_dict[i])
+
+    return cvset,testset
