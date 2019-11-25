@@ -48,7 +48,7 @@ def set_paths(exp_name='TEMP'):
         dir_pth['data'] = base_path + 'dat/raw/patchseq-v4/'
     elif '/allen' in curr_path:
         base_path = '/allen/programs/celltypes/workgroups/mousecelltypes/Rohan/'
-        dir_pth['data'] = base_path + 'patchseq/dat/v4/'
+        dir_pth['data'] = base_path + 'dat/raw/patchseq-v4/'
 
     dir_pth['result'] =     base_path + 'dat/result/' + exp_name + '/'
     dir_pth['checkpoint'] = dir_pth['result'] + 'checkpoints/'

@@ -20,9 +20,9 @@ do
             echo '...'
             sleep 1
             wait
-            #qsub subjob.bash
+            qsub subjob.bash
             echo 'Job: '${jobid//./-}' '
-            cat subjob.bash
+            #cat subjob.bash
         done
     done
 done
