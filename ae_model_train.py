@@ -1,5 +1,5 @@
 #Model updated for TF2.0
-
+#python -m ae_model_train --batchsize 100 --cvfold 0 --alpha_T 1.0 --alpha_E 1.0 --alpha_M 1.0 --lambda_TE 0.0 --latent_dim 3 --n_epochs 2000 --n_steps_per_epoch 500 --run_iter 0 --model_id 'v1' --exp_name 'TE_Patchseq_Bioarxiv'
 import argparse
 import os
 import pdb
@@ -19,18 +19,18 @@ from timebudget import timebudget
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--batchsize",         default=100,                     type=int,     help="Batch size")
+parser.add_argument("--batchsize",         default=200,                     type=int,     help="Batch size")
 parser.add_argument("--cvfold",            default=0,                       type=int,     help="9 fold CV sets (range from 0 to 8)")
 
-parser.add_argument("--alpha_T",           default=1.0,                     type=float,   help="Reconstruction error weight for T")
-parser.add_argument("--alpha_E",           default=0.1,                     type=float,   help="Reconstruction error weight for E")
-parser.add_argument("--alpha_M",           default=1.0,                     type=float,   help="Reconstruction error weight for M")
-parser.add_argument("--lambda_TE",         default=1.0,                     type=float,   help="Coupling strength")
+parser.add_argument("--alpha_T",           default=1.0,                     type=float,   help="T Reconstruction loss weight")
+parser.add_argument("--alpha_E",           default=0.1,                     type=float,   help="E Reconstruction loss weight")
+parser.add_argument("--alpha_M",           default=1.0,                     type=float,   help="M Reconstruction loss weight")
+parser.add_argument("--lambda_TE",         default=1.0,                     type=float,   help="Coupling loss weight")
 
 parser.add_argument("--latent_dim",        default=3,                       type=int,     help="Number of latent dims")
 
-parser.add_argument("--n_epochs",          default=2000,                    type=int,     help="Number of epochs to train")
-parser.add_argument("--n_steps_per_epoch", default=500,                     type=int,     help="Number of gradient steps per epoch")
+parser.add_argument("--n_epochs",          default=1500,                    type=int,     help="Number of epochs to train")
+parser.add_argument("--n_steps_per_epoch", default=500,                     type=int,     help="Number of model updates per epoch")
 
 parser.add_argument("--run_iter",          default=0,                       type=int,     help="Run-specific id")
 parser.add_argument("--model_id",          default='v1',                    type=str,     help="Model-specific id")
@@ -83,9 +83,9 @@ class Datagen():
         else:
             raise StopIteration
 
-def main(batchsize=100, cvfold=0,
+def main(batchsize=200, cvfold=0,
          alpha_T=1.0,alpha_E=1.0,alpha_M=1.0,lambda_TE=0.0,
-         latent_dim=3,n_epochs=2000, n_steps_per_epoch=500,
+         latent_dim=3,n_epochs=1500, n_steps_per_epoch=500,
          run_iter=0, model_id='v1', exp_name='TE_Patchseq_Bioarxiv'):
     
     dir_pth = set_paths(exp_name=exp_name)
@@ -94,6 +94,7 @@ def main(batchsize=100, cvfold=0,
         '_aE_' + str(alpha_E) + \
         '_aM_' + str(alpha_M) + \
         '_cs_' + str(lambda_TE) + \
+        '_ld_' + str(latent_dim) + \
         '_bs_' + str(batchsize) + \
         '_se_' + str(n_steps_per_epoch) +\
         '_ne_' + str(n_epochs) + \
@@ -182,41 +183,39 @@ def main(batchsize=100, cvfold=0,
 
     epoch=0
     for step, x_batch in enumerate(train_generator):
-        with timebudget('Training step'):
-            with tf.GradientTape() as tape:
-                XT = x_batch[0]
-                XE = x_batch[1]
-                zT, zE, XrT, XrE = model_TE((XT, XE), training=True)
-                mse_loss_T = tf.reduce_mean(tf.math.squared_difference(XT, XrT))
-                mse_loss_E = tf.reduce_mean(tf.math.squared_difference(XE[:, :-1], XrE[:, :-1]))
-                mse_loss_M = tf.reduce_mean(tf.math.squared_difference(XE[:, -1], XrE[:, -1]))
-                cpl_loss_TE = min_var_loss(zT, zE)
-                loss = alpha_T*mse_loss_T + \
-                    alpha_E*mse_loss_E + \
-                    alpha_M*mse_loss_M + \
-                    lambda_TE*cpl_loss_TE
+        with tf.GradientTape() as tape:
+            XT = x_batch[0]
+            XE = x_batch[1]
+            zT, zE, XrT, XrE = model_TE((XT, XE), training=True)
+            mse_loss_T = tf.reduce_mean(tf.math.squared_difference(XT, XrT))
+            mse_loss_E = tf.reduce_mean(tf.math.squared_difference(XE[:, :-1], XrE[:, :-1]))
+            mse_loss_M = tf.reduce_mean(tf.math.squared_difference(XE[:, -1], XrE[:, -1]))
+            cpl_loss_TE = min_var_loss(zT, zE)
+            loss = alpha_T*mse_loss_T + \
+                alpha_E*mse_loss_E + \
+                alpha_M*mse_loss_M + \
+                lambda_TE*cpl_loss_TE
 
-            grads = tape.gradient(loss, model_TE.trainable_weights)
-            optimizer.apply_gradients(zip(grads, model_TE.trainable_weights))
+        grads = tape.gradient(loss, model_TE.trainable_weights)
+        optimizer.apply_gradients(zip(grads, model_TE.trainable_weights))
 
         if (step+1) % n_steps_per_epoch == 0:
-            with timebudget('Evaluation'):
-                #Update epoch count
-                epoch = epoch+1
+            #Update epoch count
+            epoch = epoch+1
 
-                #Report training metrics
-                zT, zE, XrT, XrE = model_TE((train_T_dat, train_E_dat), training=False)
-                train_log_name, train_log_values = report_losses(train_T_dat, train_E_dat, zT, zE, XrT, XrE, datatype='train_', verbose='True')
+            #Report training metrics
+            zT, zE, XrT, XrE = model_TE((train_T_dat, train_E_dat), training=False)
+            train_log_name, train_log_values = report_losses(train_T_dat, train_E_dat, zT, zE, XrT, XrE, datatype='train_', verbose='True')
 
-                #Report validation metrics
-                zT, zE, XrT, XrE = model_TE((val_T_dat, val_E_dat), training=False)
-                val_log_name, val_log_values = report_losses(val_T_dat, val_E_dat, zT, zE, XrT, XrE, datatype='val_', verbose='True')
+            #Report validation metrics
+            zT, zE, XrT, XrE = model_TE((val_T_dat, val_E_dat), training=False)
+            val_log_name, val_log_values = report_losses(val_T_dat, val_E_dat, zT, zE, XrT, XrE, datatype='val_', verbose='True')
 
-                with open(dir_pth['logs']+fileid+'.csv', "a") as logfile:
-                    writer = csv.writer(logfile, delimiter=',')
-                    if epoch == 1:
-                        writer.writerow(train_log_name+val_log_name)
-                    writer.writerow(train_log_values+val_log_values)
+            with open(dir_pth['logs']+fileid+'.csv', "a") as logfile:
+                writer = csv.writer(logfile, delimiter=',')
+                if epoch == 1:
+                    writer.writerow(train_log_name+val_log_name)
+                writer.writerow(train_log_values+val_log_values)
 
     #Save model weights
     model_TE.save_weights(dir_pth['result']+fileid+'-weights.h5')
