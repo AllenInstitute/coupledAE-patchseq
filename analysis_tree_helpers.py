@@ -139,8 +139,13 @@ class HTree():
         plt.tight_layout()
         fig.subplots_adjust(bottom=0.2)
         return
+    
+    def plotnodes(self,nodelist,fig=None):
+        ind = np.isin(self.child,nodelist)
+        plt.plot(self.x[ind], self.y[ind],'s',color='r')
+        return
 
-    def get_descendants(self,node,leafonly=False):
+    def get_descendants(self,node:str,leafonly=False):
         '''Return a list consisting of all descendents for a given node. Given node is excluded.\n
         'node' is of type str \n
         `leafonly=True` returns only leaf node descendants'''

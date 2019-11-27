@@ -1,6 +1,6 @@
-for csTE in 0 0.1 1.0 10.0
+for csTE in 0 0.1 1.0 2.0 5.0
 do
-    for aE in 0.1 0.2 0.5 1.0
+    for aE in 0.1 0.2 0.5 1.0 1.5 2.0
     do
         for cv in {0..8}
         do
