@@ -9,6 +9,7 @@ import scipy.io as sio
 import pdb
 import matplotlib.pyplot as plt
 import seaborn as sns
+from copy import deepcopy
 
 class Node():
     '''Simple Node class. Each instance contains a list of children and parents.'''
@@ -219,6 +220,7 @@ class HTree():
             print('Node not found in current tree')
         return HTree(htree_df=subtree_df)
 
+
 def do_merges(labels, list_changes=[], n_merges=0):
     '''Perform n_merges on an array of labels using the list of changes at each merge.'''
 
@@ -235,3 +237,32 @@ def do_merges(labels, list_changes=[], n_merges=0):
                   len(list_changes))
             break
     return labels
+
+
+def simplify_tree(pruned_subtree,skip_nodes=None):
+    '''pruned subtree has nodes that have a single child node. In the returned simplified tree,
+    the parent is directly connected to the child, and such intermediate nodes are removed.'''
+    
+    simple_tree = deepcopy(pruned_subtree)
+    if skip_nodes is None:
+        X = pd.Series(pruned_subtree.parent).value_counts().to_frame()
+        skip_nodes = X.iloc[X[0].values==1].index.values.tolist()
+
+    for node in skip_nodes:
+        node_parent = np.unique(simple_tree.parent[simple_tree.child == node])
+        node_child = np.unique(simple_tree.child[simple_tree.parent == node])
+
+        #Ignore root node special case:
+        if node_parent.size != 0:
+            #print(simple_tree.obj2df().to_string())
+            print('Remove {} and link {} to {}'.format(node, node_parent, node_child))
+            simple_tree.parent[simple_tree.parent == node]=node_parent
+
+            #Remove rows containing this particular node as parent or child
+            simple_tree_df=simple_tree.obj2df()
+            simple_tree_df.drop(simple_tree_df[(simple_tree_df.child == node) | (simple_tree_df.parent == node)].index, inplace=True)
+
+            #Reinitialize tree from the dataframe
+            simple_tree=HTree(htree_df=simple_tree_df)
+        
+    return simple_tree,skip_nodes
