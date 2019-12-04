@@ -24,7 +24,7 @@ def relabel_restrict_inputs(CV=None,O=None,this_classification=[],descendant_dic
     Arguments:
         CV -- dict with one of the cross validation sets, with fields `zT`, `zE`, `train_ind`,`val_ind`,`test_ind`
         O -- dict with annotation field `cluster`
-        this_classification -- list of labels remaining in the classificaiton
+        this_classification -- list of labels remaining in the classification
         descendant_dict -- dict with descendants based on the tree
     
     Returns:
@@ -81,7 +81,7 @@ def set_paths(exp_name='logistic_classifiers'):
     dir_pth['cvfolds'] = base_path + 'dat/result/TE_Patchseq_Bioarxiv/'
     dir_pth['result'] = dir_pth['cvfolds'] + exp_name + '/'
 
-    Path(dir_pth['result']).mkdir(parents=True, exist_ok=True) 
+    Path(dir_pth['result']).mkdir(parents=True, exist_ok=True)
     return dir_pth
 
 
@@ -134,11 +134,14 @@ def main(cvfold=0,
                     'aE_'+str(alpha_E)+'_' \
                     'aM_'+str(alpha_M)+'_' \
                     'csTE_'+str(lambda_TE) + \
-                    '_randseed_'+str(rand_seed)
+                    '_randseed_'+str(rand_seed) + \
+                    '_start_'+str(start_i) + \
+                    '_stop_'+str(stop_i)
     result_fname = result_fname.replace('.','-')+'.csv'
 
     max_i = min(stop_i,len(all_classifications[root_node]))
     for i in range(start_i,max_i,1):
+        print('Iter {:6d} in range {:6d} to {:6d}'.format(i,start_i,max_i))
         classification_id = root_node+'_'+str(i)
         this_classification = all_classifications[root_node][i]
         n_classes=len(this_classification)
