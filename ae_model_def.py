@@ -106,7 +106,7 @@ class Encoder_E(layers.Layer):
 
     def call(self, inputs, training=True):
         x = self.gnoise(inputs, training=training)
-        x = self.drp(inputs, training=training)
+        x = self.drp(x, training=training)
         x = self.fc0(x, training=training)
         x = self.fc1(x, training=training)
         x = self.fc2(x, training=training)
@@ -157,7 +157,7 @@ class Model_TE(tf.keras.Model):
                T_intermediate_dim=50,
                E_intermediate_dim=40,
                T_dropout=0.5,
-               E_gnoise_sd=0.5,
+               E_gnoise_sd=0.05,
                E_dropout=0.1,
                latent_dim=3,
                name='TE',
@@ -176,15 +176,24 @@ class Model_TE(tf.keras.Model):
             name: TE
         """
         super(Model_TE, self).__init__(name=name, **kwargs)
-        self.encoder_T = Encoder_T(dropout_rate=0.5,latent_dim=latent_dim, intermediate_dim=T_intermediate_dim, name='Encoder_T')
-        self.encoder_E = Encoder_E(gaussian_noise_sd=0.1, dropout_rate=0.1, latent_dim=3, intermediate_dim=E_intermediate_dim, name='Encoder_E')
+        self.encoder_T = Encoder_T(dropout_rate=T_dropout,latent_dim=latent_dim, intermediate_dim=T_intermediate_dim, name='Encoder_T')
+        self.encoder_E = Encoder_E(gaussian_noise_sd=E_gnoise_sd, dropout_rate=E_dropout, latent_dim=latent_dim, intermediate_dim=E_intermediate_dim, name='Encoder_E')
         
         self.decoder_T = Decoder_T(output_dim=T_output_dim, intermediate_dim=T_intermediate_dim, name='Decoder_T')
         self.decoder_E = Decoder_E(output_dim=E_output_dim, intermediate_dim=E_intermediate_dim, name='Decoder_E')
 
-    def call(self, inputs, training):
-        zT = self.encoder_T(inputs[0],training=training)
-        zE = self.encoder_E(inputs[1],training=training)
-        XrT = self.decoder_T(zT,training=training)
-        XrE = self.decoder_E(zE,training=training)
+    def call(self, inputs, train_T=True, train_E=True):
+        """
+        Encoder for transcriptomic data
+        Args:
+            training: Toggles dropout/noise for T and E arms. Used to report training/validation losses without the noise.
+            train_both: Toggles dropout for only the T arm. Used to fine tune the E representation.
+        """
+        #T arm
+        zT = self.encoder_T(inputs[0],training=train_T)
+        XrT = self.decoder_T(zT,training=train_T)
+        
+        #E arm
+        zE = self.encoder_E(inputs[1],training=train_E)
+        XrE = self.decoder_E(zE,training=train_E)
         return zT,zE,XrT,XrE
