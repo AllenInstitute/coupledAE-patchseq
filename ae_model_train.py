@@ -1,5 +1,5 @@
 #Model updated for TF2.0
-#python -m ae_model_train --batchsize 100 --cvfold 0 --alpha_T 1.0 --alpha_E 1.0 --alpha_M 1.0 --lambda_TE 0.0 --latent_dim 3 --n_epochs 2000 --n_steps_per_epoch 500 --ckpt_save_freq 100 --run_iter 0 --model_id 'v1' --exp_name 'TE_Patchseq_Bioarxiv'
+#python -m ae_model_train --batchsize 100 --cvfold 0 --alpha_T 1.0 --alpha_E 1.0 --alpha_M 1.0 --lambda_TE 0.0 --latent_dim 3 --n_epochs 10 --n_steps_per_epoch 500 --ckpt_save_freq 2 --n_finetuning_steps 10 --run_iter 0 --model_id 'v1' --exp_name 'TE_Patchseq_Bioarxiv'
 import argparse
 import os
 import pdb
@@ -7,6 +7,8 @@ import re
 import socket
 import sys
 import timeit
+import time
+import pdb
 
 import numpy as np
 import scipy.io as sio
@@ -32,6 +34,7 @@ parser.add_argument("--latent_dim",        default=3,                       type
 parser.add_argument("--n_epochs",          default=1500,                    type=int,     help="Number of epochs to train")
 parser.add_argument("--n_steps_per_epoch", default=500,                     type=int,     help="Number of model updates per epoch")
 parser.add_argument("--ckpt_save_freq",    default=100,                     type=int,     help="Frequency of checkpoint saves")
+parser.add_argument("--n_finetuning_steps",default=100,                     type=int,     help="Number of fine tuning steps for E agent")
 
 parser.add_argument("--run_iter",          default=0,                       type=int,     help="Run-specific id")
 parser.add_argument("--model_id",          default='v1',                    type=str,     help="Model-specific id")
@@ -87,6 +90,7 @@ class Datagen():
 def main(batchsize=200, cvfold=0,
          alpha_T=1.0,alpha_E=1.0,alpha_M=1.0,lambda_TE=0.0,
          latent_dim=3,n_epochs=1500, n_steps_per_epoch=500, ckpt_save_freq=100,
+         n_finetuning_steps=100,
          run_iter=0, model_id='v1', exp_name='TE_Patchseq_Bioarxiv'):
     
     dir_pth = set_paths(exp_name=exp_name)
@@ -143,10 +147,10 @@ def main(batchsize=200, cvfold=0,
         vars_j_ = tf.square(tf.linalg.svd(zj - tf.reduce_mean(zj, axis=0), compute_uv=False))/tf.cast(batch_size - 1, tf.float32)
         vars_j  = tf.where(tf.math.is_nan(vars_j_), tf.zeros_like(vars_j_) + tf.cast(1e-2,dtype=tf.float32), vars_j_)
         weighted_distance = tf.multiply(tf.sqrt(tf.reduce_sum(tf.math.squared_difference(zi_paired, zj_paired),axis=1)),Wij_paired)
-        loss_ij    = tf.reduce_mean(weighted_distance,axis=None)/tf.maximum(tf.reduce_min(vars_j, axis=None),tf.cast(1e-2,dtype=tf.float32))
+        loss_ij = tf.reduce_mean(weighted_distance,axis=None)/tf.maximum(tf.reduce_min(vars_j, axis=None),tf.cast(1e-2,dtype=tf.float32))
         return loss_ij
 
-    def report_losses(XT, XE, zT, zE, XrT, XrE, datatype='train', verbose=False):
+    def report_losses(XT, XE, zT, zE, XrT, XrE, epoch, datatype='train', verbose=False):
         mse_loss_T = tf.reduce_mean(tf.math.squared_difference(XT, XrT))
         mse_loss_E = tf.reduce_mean(tf.math.squared_difference(XE, XrE))
         mse_loss_M = tf.reduce_mean(tf.math.squared_difference(XE[:, -1], XrE[:, -1]))
@@ -168,6 +172,8 @@ def main(batchsize=200, cvfold=0,
                       mse_loss_M.numpy(), mse_loss_TE.numpy()]
         return log_name, log_values
 
+    
+
     optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
     train_generator = tf.data.Dataset.from_generator(Datagen,output_types=(tf.float32, tf.float32),
                                                      args=(maxsteps,batchsize,train_T_dat,train_E_dat))
@@ -182,12 +188,20 @@ def main(batchsize=200, cvfold=0,
                         latent_dim=latent_dim,
                         name='TE')
 
-    epoch=0
-    for step, x_batch in enumerate(train_generator):
+    @tf.function
+    def train_fn(XT, XE, train_T=False, train_E=False, subnetwork='all'):
+        """Enclose this with tf.function to create a fast training step. Function can be used for inference as well. 
+        Arguments:
+            XT: T data for training or validation
+            XE: E data for training or validation
+            train_T: {bool} -- Switch augmentation for T data on or off
+            train_E {bool} -- Switch augmentation for E data on or off
+            subnetwork {str} -- 'all' or 'E'. 'all' trains the full network, 'E' trains only the E arm.
+        """
         with tf.GradientTape() as tape:
-            XT = x_batch[0]
-            XE = x_batch[1]
-            zT, zE, XrT, XrE = model_TE((XT, XE), training=True)
+            zT, zE, XrT, XrE = model_TE((XT, XE), train_T=train_T, train_E=train_E)
+            
+            #Find the weights to update
             mse_loss_T = tf.reduce_mean(tf.math.squared_difference(XT, XrT))
             mse_loss_E = tf.reduce_mean(tf.math.squared_difference(XE[:, :-1], XrE[:, :-1]))
             mse_loss_M = tf.reduce_mean(tf.math.squared_difference(XE[:, -1], XrE[:, -1]))
@@ -197,23 +211,61 @@ def main(batchsize=200, cvfold=0,
                 alpha_M*mse_loss_M + \
                 lambda_TE*cpl_loss_TE
 
-        grads = tape.gradient(loss, model_TE.trainable_weights)
-        optimizer.apply_gradients(zip(grads, model_TE.trainable_weights))
+            #Apply updates to specified subnetworks:
+            if subnetwork is 'all':
+                trainable_weights = [weight for weight in model_TE.trainable_weights]
+                grads = tape.gradient(loss, trainable_weights)
+                optimizer.apply_gradients(zip(grads, trainable_weights))
+                
+            if subnetwork is 'E':
+                trainable_weights = [weight for weight in model_TE.trainable_weights if '_E' in weight.name]
+                grads = tape.gradient(loss, trainable_weights)
+                optimizer.apply_gradients(zip(grads, trainable_weights))
+                
+        return zT, zE, XrT, XrE
 
+    def save_results(this_model,Data,fname):
+        all_T_dat = tf.constant(Data['T_dat'])
+        all_E_dat = tf.constant(np.concatenate([Data['E_dat'], Data['M_dat'].reshape(Data['M_dat'].size, 1)], axis=1))
+        zT, zE, XrT, XrE = this_model((all_T_dat, all_E_dat), training=False)
+        XrE_from_XT = this_model.decoder_E(zT, training=False)
+        XrT_from_XE = this_model.decoder_T(zE, training=False)
+
+        savemat = {'zT': zT.numpy(),
+                'zE': zE.numpy(),
+                'XE': XE.numpy(),
+                'XrE': XrE.numpy(),
+                'XrE_from_XT': XrE_from_XT.numpy(),
+                'XT': XT.numpy(),
+                'XrT': XrT.numpy(),
+                'XrT_from_XE': XrT_from_XE.numpy(),
+                'train_ind': train_ind,
+                'val_ind': val_ind,
+                'test_ind': testset}
+
+        sio.savemat(fname, savemat, do_compression=True)
+        return
+
+    #Main training loop ----------------------------------------------------------------------
+    epoch=0
+    for step, (XT,XE) in enumerate(train_generator): 
+        zT, zE, XrT, XrE = train_fn(XT=XT, XE=XE, train_T=True,train_E=True,subnetwork='all')
+        
         if (step+1) % n_steps_per_epoch == 0:
             #Update epoch count
             epoch = epoch+1
 
-            #Report training metrics
-            zT, zE, XrT, XrE = model_TE((train_T_dat, train_E_dat), training=False)
-            train_log_name, train_log_values = report_losses(train_T_dat, train_E_dat, zT, zE, XrT, XrE, datatype='train_', verbose='True')
-
-            #Report validation metrics
-            zT, zE, XrT, XrE = model_TE((val_T_dat, val_E_dat), training=False)
-            val_log_name, val_log_values = report_losses(val_T_dat, val_E_dat, zT, zE, XrT, XrE, datatype='val_', verbose='True')
+            #Collect training metrics
+            zT, zE, XrT, XrE = train_fn(XT=train_T_dat, XE=train_E_dat, train_T=False,train_E=False,subnetwork=None)
+            train_log_name, train_log_values = report_losses(train_T_dat, train_E_dat, zT, zE, XrT, XrE ,epoch, datatype='train_', verbose=True)
+            
+            #Collect validation metrics
+            zT, zE, XrT, XrE = train_fn(XT=val_T_dat, XE=val_E_dat, train_T=False,train_E=False,subnetwork=None)
+            val_log_name, val_log_values = report_losses(val_T_dat, val_E_dat, zT, zE, XrT, XrE, epoch, datatype='val_', verbose=True)
 
             with open(dir_pth['logs']+fileid+'.csv', "a") as logfile:
                 writer = csv.writer(logfile, delimiter=',')
+                #Write headers to the log file
                 if epoch == 1:
                     writer.writerow(train_log_name+val_log_name)
                 writer.writerow(train_log_values+val_log_values)
@@ -221,58 +273,41 @@ def main(batchsize=200, cvfold=0,
             if epoch % ckpt_save_freq == 0:
                 #Save model weights
                 model_TE.save_weights(dir_pth['checkpoint']+fileid+'_ckptep_'+str(epoch)+'-weights.h5')
-
                 #Save reconstructions and results for the full dataset:
-                all_T_dat = tf.constant(D['T_dat'])
-                all_E_dat = D['E_dat']
-                all_M_dat = D['M_dat']
-                all_E_dat = tf.constant(np.concatenate([all_E_dat, all_M_dat.reshape(all_M_dat.size, 1)], axis=1))
-                zT, zE, XrT, XrE = model_TE((all_T_dat, all_E_dat), training=False)
-                XrE_from_XT = model_TE.decoder_E(zT, training=False)
-                XrT_from_XE = model_TE.decoder_T(zE, training=False)
-
-                savemat = {'zT': zT.numpy(),
-                        'zE': zE.numpy(),
-                        'XE': XE.numpy(),
-                        'XrE': XrE.numpy(),
-                        'XrE_from_XT': XrE_from_XT.numpy(),
-                        'XT': XT.numpy(),
-                        'XrT': XrT.numpy(),
-                        'XrT_from_XE': XrT_from_XE.numpy(),
-                        'train_ind': train_ind,
-                        'val_ind': val_ind,
-                        'test_ind': testset,
-                        'cvset': cvset}
-
-                sio.savemat(dir_pth['checkpoint']+fileid+'_ckptep_'+str(epoch)+'-summary.mat', savemat, do_compression=True)
-
-
+                save_results(this_model=model_TE,Data=D,fname=dir_pth['checkpoint']+fileid+'_ckptep_'+str(epoch)+'-summary.mat')
+            
     #Save model weights on exit
     model_TE.save_weights(dir_pth['result']+fileid+'-weights.h5')
-
     #Save reconstructions and results for the full dataset:
-    all_T_dat = tf.constant(D['T_dat'])
-    all_E_dat = D['E_dat']
-    all_M_dat = D['M_dat']
-    all_E_dat = tf.constant(np.concatenate([all_E_dat, all_M_dat.reshape(all_M_dat.size, 1)], axis=1))
-    zT, zE, XrT, XrE = model_TE((all_T_dat, all_E_dat), training=False)
-    XrE_from_XT = model_TE.decoder_E(zT, training=False)
-    XrT_from_XE = model_TE.decoder_T(zE, training=False)
+    save_results(this_model=model_TE,Data=D,fname=dir_pth['result']+fileid+'-summary.mat')
 
-    savemat = {'zT': zT.numpy(),
-               'zE': zE.numpy(),
-               'XE': XE.numpy(),
-               'XrE': XrE.numpy(),
-               'XrE_from_XT': XrE_from_XT.numpy(),
-               'XT': XT.numpy(),
-               'XrT': XrT.numpy(),
-               'XrT_from_XE': XrT_from_XE.numpy(),
-               'train_ind': train_ind,
-               'val_ind': val_ind,
-               'test_ind': testset,
-               'cvset': cvset}
+    print('\n\n starting fine tuning loop')
+    #Fine tuning loop ----------------------------------------------------------------------
+    #Each batch is now the whole dataset
+    #E arm is fine tuned on the full loss function
+    for epoch in range(n_finetuning_steps):
+        #Switch of T augmentation, and update only E arm:
+        zT, zE, XrT, XrE = train_fn(XT=train_T_dat, XE=train_E_dat, train_T=False,train_E=True,subnetwork='E')
+        
+        #Collect training metrics
+        zT, zE, XrT, XrE = train_fn(XT=train_T_dat, XE=train_E_dat, train_T=False,train_E=False,subnetwork=None)
+        train_log_name, train_log_values = report_losses(train_T_dat, train_E_dat, zT, zE, XrT, XrE, epoch, datatype='train_', verbose=True)
+        
+        #Collect validation metrics
+        zT, zE, XrT, XrE = train_fn(XT=val_T_dat, XE=val_E_dat, train_T=False,train_E=False,subnetwork=None)
+        val_log_name, val_log_values = report_losses(val_T_dat, val_E_dat, zT, zE, XrT, XrE, epoch, datatype='val_', verbose=False)
 
-    sio.savemat(dir_pth['result']+fileid+'-summary.mat', savemat, do_compression=True)
+        with open(dir_pth['logs']+fileid+str(n_finetuning_steps)+'_ft.csv', "a") as logfile:
+            writer = csv.writer(logfile, delimiter=',')
+            #Write headers to the log file
+            if epoch == 0:
+                writer.writerow(train_log_name+val_log_name)
+            writer.writerow(train_log_values+val_log_values)
+    
+    #Save model weights on exit
+    model_TE.save_weights(dir_pth['result']+fileid+str(n_finetuning_steps)+'_ft-weights.h5')
+    #Save reconstructions and results for the full dataset:
+    save_results(this_model=model_TE,Data=D,fname=dir_pth['result']+fileid+str(n_finetuning_steps)+'_ft-summary.mat')    
     return
 
 if __name__ == "__main__":
