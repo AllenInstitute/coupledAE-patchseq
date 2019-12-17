@@ -13,6 +13,7 @@ import pandas as pd
 import scipy.io as sio
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics.cluster import adjusted_rand_score
+from sklearn.metrics import adjusted_mutual_info_score, normalized_mutual_info_score
 from timebudget import timebudget
 
 from analysis_tree_helpers import HTree
@@ -88,7 +89,7 @@ def set_paths(exp_name='logistic_classifiers'):
 parser = argparse.ArgumentParser()
 parser.add_argument("--cvfold",     default=0,                     type=int,   help='cv fold')
 parser.add_argument("--alpha_T",    default=1.0,                   type=float, help='one of [1.0]')
-parser.add_argument("--alpha_E",    default=0.5,                   type=float, help='one of [0.1,0.2,0.5,1.0]')
+parser.add_argument("--alpha_E",    default=1.0,                   type=float, help='one of [1.0,...]')
 parser.add_argument("--lambda_TE",  default=1.0,                   type=float, help='one of [0.0,0.1,1.0,10.0]')
 parser.add_argument("--root_node",  default='n88',                 type=str,   help='one of [n88,n60]')
 parser.add_argument("--start_i",    default=0,                     type=int,   help='classification ids')
@@ -100,7 +101,7 @@ parser.add_argument("--exp_name",   default='logistic_classifiers',type=str,   h
 
 def main(cvfold=0,
          alpha_T=1.0,
-         alpha_E=0.5,
+         alpha_E=1.0,
          lambda_TE=1.0,
          root_node='n88',
          start_i=0,
@@ -110,12 +111,12 @@ def main(cvfold=0,
          exp_name='logistic_classifiers'):
 
     alpha_M=alpha_E
-    cvfold_fname='v1_aT_'+str(alpha_T)+\
+    cvfold_fname='v2_aT_'+str(alpha_T)+\
                 '_aE_'+str(alpha_E)+\
                 '_aM_'+str(alpha_M)+\
                 '_cs_'+str(lambda_TE)+\
                 '_ld_3_bs_200_se_500_ne_1500_cv_'+str(cvfold)+\
-                '_ri_0-summary'
+                '_ri_0500_ft-summary'
     cvfold_fname=cvfold_fname.replace('.','-')+'.mat'
     dir_pth = set_paths(exp_name=exp_name)
     
@@ -136,7 +137,8 @@ def main(cvfold=0,
                     'csTE_'+str(lambda_TE) + \
                     '_randseed_'+str(rand_seed) + \
                     '_start_'+str(start_i) + \
-                    '_stop_'+str(stop_i)
+                    '_stop_'+str(stop_i) + \
+                    '_cv_'+str(cvfold)
     result_fname = result_fname.replace('.','-')+'.csv'
 
     max_i = min(stop_i,len(all_classifications[root_node]))
@@ -150,26 +152,38 @@ def main(cvfold=0,
         if n_classes>1: 
             X = relabel_restrict_inputs(CV=CV,O=O,this_classification=this_classification,descendant_dict=all_descendants)
             clf = LogisticRegression(penalty='none',
-                                    random_state=rand_seed,
-                                    solver='saga',
-                                    max_iter=10000,
-                                    multi_class='multinomial').fit(X['train'][embedding],X['train']['cluster'])
+                                     random_state=rand_seed,
+                                     solver='lbfgs',
+                                     max_iter=10000,
+                                     multi_class='multinomial', 
+                                     class_weight='balanced').fit(X['train'][embedding], X['train']['cluster'])
             
             result={}
             for ds in ['train','val','test']:
                 pred_label = clf.predict(X[ds][embedding])
                 result[ds+'_acc'] = np.sum(pred_label==X[ds]['cluster'])/X[ds]['cluster'].size
                 result[ds+'_ari'] = adjusted_rand_score(X[ds]['cluster'], pred_label)
+                result[ds+'_ami'] = adjusted_mutual_info_score(X[ds]['cluster'], pred_label)
+                result[ds+'_nmi'] = normalized_mutual_info_score(X[ds]['cluster'], pred_label)
                 result[ds+'_samples'] = pred_label.size
 
             result_list = [result['train_acc'], result['val_acc'], result['test_acc'],
                            result['train_ari'], result['val_ari'], result['test_ari'],
+                           result['train_ami'], result['val_ami'], result['test_ami'],
+                           result['train_nmi'], result['val_nmi'], result['test_nmi'],
                            result['train_samples'], result['val_samples'], result['test_samples'],
                            cvfold, classification_id, n_classes]
-                
+
             with open(dir_pth['result']+result_fname,'a') as f:
                 writer = csv.writer(f)
-                writer.writerows([result_list])
+                if i==start_i:
+                    writer.writerow(['train_acc', 'val_acc', 'test_acc',
+                                      'train_ari', 'val_ari', 'test_ari',
+                                      'train_ami', 'val_ami', 'test_ami',
+                                      'train_nmi', 'val_nmi', 'test_nmi',
+                                      'train_samples', 'val_samples', 'test_samples',
+                                      'cvfold', 'classification_id', 'n_classes'])
+                writer.writerow(result_list)
     return
 
 if __name__ == "__main__":
