@@ -131,14 +131,14 @@ class HTree():
                 yc = self.y[c_ind]
                 plt.plot([xc, xc], [yc, yp], color=skeletoncol)
                 plt.plot([xc, xp], [yp, yp], color=skeletoncol)
-                
-        ax = plt.gca()
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_xlim([np.min(self.x) - 1, np.max(self.x) + 1])
-        ax.set_ylim([np.min(self.y), 1.2*np.max(self.y)])
-        plt.tight_layout()
-        fig.subplots_adjust(bottom=0.2)
+        if skeletononly==False:
+            ax = plt.gca()
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_xlim([np.min(self.x) - 1, np.max(self.x) + 1])
+            ax.set_ylim([np.min(self.y), 1.2*np.max(self.y)])
+            plt.tight_layout()
+            fig.subplots_adjust(bottom=0.2)
         return
     
     def plotnodes(self,nodelist,fig=None):
@@ -222,7 +222,19 @@ class HTree():
 
 
 def do_merges(labels, list_changes=[], n_merges=0):
-    '''Perform n_merges on an array of labels using the list of changes at each merge.'''
+    """Perform n_merges on an array of labels using the list of changes at each merge. 
+    If labels are leaf node labels, then the do_merges() gives successive horizontal cuts of the hierarchical tree.
+    
+    Arguments:
+        labels -- label array to update
+    
+    Keyword Arguments:
+        list_changes  -- output of Htree.get_mergeseq()
+        n_merges -- int, can be at most len(list_changes)
+    
+    Returns:
+        labels -- array of updated labels. Same size as input, non-unique entries are allowed.
+    """
 
     for i in range(n_merges):
         if i < len(list_changes):
