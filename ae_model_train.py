@@ -295,7 +295,7 @@ def main(batchsize=200, cvfold=0,
         
         #Collect validation metrics
         zT, zE, XrT, XrE = train_fn(XT=val_T_dat, XE=val_E_dat, train_T=False,train_E=False,subnetwork=None)
-        val_log_name, val_log_values = report_losses(val_T_dat, val_E_dat, zT, zE, XrT, XrE, epoch, datatype='val_', verbose=False)
+        val_log_name, val_log_values = report_losses(val_T_dat, val_E_dat, zT, zE, XrT, XrE, epoch, datatype='val_', verbose=True)
 
         with open(dir_pth['logs']+fileid+str(n_finetuning_steps)+'_ft.csv', "a") as logfile:
             writer = csv.writer(logfile, delimiter=',')
