@@ -1,6 +1,5 @@
 csTE=1.0
 aE=1.0
-
 for aM in 0.0 1.0 10.0 100.0
 do
     for cv in {0..8}
