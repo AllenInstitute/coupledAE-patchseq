@@ -95,8 +95,9 @@ parser.add_argument("--root_node",  default='n88',                 type=str,   h
 parser.add_argument("--start_i",    default=0,                     type=int,   help='classification ids')
 parser.add_argument("--stop_i",     default=100,                   type=int,   help='stop_i will be min of this and total number of classifications to be tested')
 parser.add_argument("--embedding",  default='zE',                  type=str,   help='zE or zT')
+parser.add_argument("--latent_dim", default=3,                     type=int,   help='one of [2,3,5] in v2')
 parser.add_argument("--rand_seed",  default=0,                     type=int,   help='for repeatability/ measuring variability from initializing the logistic classifier')
-parser.add_argument("--exp_name",   default='logistic_classifiers',type=str,   help='for repeatability/ measuring variability from initializing the logistic classifier')
+parser.add_argument("--exp_name",   default='LR_v2_bal',           type=str,   help='for repeatability/ measuring variability from initializing the logistic classifier')
 
 
 def main(cvfold=0,
@@ -107,15 +108,18 @@ def main(cvfold=0,
          start_i=0,
          stop_i=11000,
          embedding='zE',
+         latent_dim=3,
          rand_seed=0,
-         exp_name='logistic_classifiers'):
+         exp_name='LR_v2_bal'):
 
+    exp_name = exp_name+'_ld'+str(latent_dim)
     alpha_M=alpha_E
     cvfold_fname='v2_aT_'+str(alpha_T)+\
                 '_aE_'+str(alpha_E)+\
                 '_aM_'+str(alpha_M)+\
                 '_cs_'+str(lambda_TE)+\
-                '_ld_3_bs_200_se_500_ne_1500_cv_'+str(cvfold)+\
+                '_ld_'+str(latent_dim)+\
+                '_bs_200_se_500_ne_1500_cv_'+str(cvfold)+\
                 '_ri_0500_ft-summary'
     cvfold_fname=cvfold_fname.replace('.','-')+'.mat'
     dir_pth = set_paths(exp_name=exp_name)
@@ -130,18 +134,21 @@ def main(cvfold=0,
     all_descendants = htree.get_all_descendants()
                 
     result_fname = 'cv_classification_results_' + \
-                    embedding + '-' + \
-                    'aT_'+str(alpha_T)+'_' \
-                    'aE_'+str(alpha_E)+'_' \
-                    'aM_'+str(alpha_M)+'_' \
-                    'csTE_'+str(lambda_TE) + \
+                    embedding + \
+                    '_aT_'+str(alpha_T) + \
+                    '_aE_'+str(alpha_E) + \
+                    '_aM_'+str(alpha_M)+ \
+                    '_csTE_'+str(lambda_TE) + \
+                    '_ld_'+str(latent_dim) + \
                     '_randseed_'+str(rand_seed) + \
                     '_start_'+str(start_i) + \
                     '_stop_'+str(stop_i) + \
-                    '_cv_'+str(cvfold)
+                    '_cv_'+str(cvfold) +\
+                    '_rn_'+root_node
     result_fname = result_fname.replace('.','-')+'.csv'
 
     max_i = min(stop_i,len(all_classifications[root_node]))
+    write_header=True
     for i in range(start_i,max_i,1):
         print('Iter {:6d} in range {:6d} to {:6d}'.format(i,start_i,max_i))
         classification_id = root_node+'_'+str(i)
@@ -176,13 +183,14 @@ def main(cvfold=0,
 
             with open(dir_pth['result']+result_fname,'a') as f:
                 writer = csv.writer(f)
-                if i==start_i:
+                if write_header:
                     writer.writerow(['train_acc', 'val_acc', 'test_acc',
                                       'train_ari', 'val_ari', 'test_ari',
                                       'train_ami', 'val_ami', 'test_ami',
                                       'train_nmi', 'val_nmi', 'test_nmi',
                                       'train_samples', 'val_samples', 'test_samples',
                                       'cvfold', 'classification_id', 'n_classes'])
+                    write_header=False
                 writer.writerow(result_list)
     return
 
