@@ -90,7 +90,7 @@ class HTree():
             setattr(self, key, htree_df[key].values)
         return
 
-    def plot(self,figsize=(15,10),fontsize=10,skeletononly=False,skeletoncol='#BBBBBB',txtleafonly=False,fig=None):
+    def plot(self,figsize=(15,10),fontsize=10,skeletononly=False,skeletoncol='#BBBBBB',skeletonalpha=1.0,ls='-',txtleafonly=False,fig=None):
         if fig is None:
             fig = plt.figure(figsize=figsize)
 
@@ -129,8 +129,8 @@ class HTree():
             for c_ind in all_c_inds:
                 xc = self.x[c_ind]
                 yc = self.y[c_ind]
-                plt.plot([xc, xc], [yc, yp], color=skeletoncol)
-                plt.plot([xc, xp], [yp, yp], color=skeletoncol)
+                plt.plot([xc, xc], [yc, yp], color=skeletoncol,alpha=skeletonalpha,ls=ls,)
+                plt.plot([xc, xp], [yp, yp], color=skeletoncol,alpha=skeletonalpha,ls=ls)
         if skeletononly==False:
             ax = plt.gca()
             ax.set_xticks([])

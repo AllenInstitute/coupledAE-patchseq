@@ -109,6 +109,11 @@ def main(batchsize=200, cvfold=0,
 
     #Load data:
     D = sio.loadmat(dir_pth['data']+'PS_v4_beta_0-4_matched_well-sampled.mat',squeeze_me=True)
+    if alpha_M==0.0:
+        #Network may use information in D['M_dat'] to improve performance on D['E_dat'] for alpha_M=0.0 case.
+        #D['M_dat']= constant prevents this.
+        D['M_dat']=np.zeros_like(D['M_dat'])
+
     cvset,testset = TEM_get_splits(D)
 
     train_ind = cvset[cvfold]['train']
@@ -284,10 +289,10 @@ def main(batchsize=200, cvfold=0,
     print('\n\n starting fine tuning loop')
     #Fine tuning loop ----------------------------------------------------------------------
     #Each batch is now the whole dataset
-    #E arm is fine tuned on the full loss function
+    
     for epoch in range(n_finetuning_steps):
         #Switch of T augmentation, and update only E arm:
-        zT, zE, XrT, XrE = train_fn(XT=train_T_dat, XE=train_E_dat, train_T=False,train_E=True,subnetwork='E')
+        zT, zE, XrT, XrE = train_fn(XT=train_T_dat, XE=train_E_dat, train_T=True,train_E=True,subnetwork='all')
         
         #Collect training metrics
         zT, zE, XrT, XrE = train_fn(XT=train_T_dat, XE=train_E_dat, train_T=False,train_E=False,subnetwork=None)
