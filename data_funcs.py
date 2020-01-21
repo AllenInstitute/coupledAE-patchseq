@@ -227,3 +227,26 @@ def TEM_get_splits(matdict):
         cvset.append(ind_dict[i])
 
     return cvset,testset
+
+def labelwise_equal_samples(labels,n_samples=60,random_seed=0):
+    '''
+    Returns indices of random equal number of samples from `labels`
+    '''
+
+    #Remove labels that have fewer than the number of samples required
+    ttypes,counts = np.unique(labels,return_counts=True)
+    keep_ind = counts>n_samples
+    for ttype in ttypes[~keep_ind]:
+        print('Removing: {}.'.format(ttype))
+    ttypes = ttypes[keep_ind]
+    counts = counts[keep_ind]
+
+    #Set random seed only in local scope
+    r = np.random.RandomState(random_seed)
+    train_ind = np.empty(shape=(0,),dtype=int)
+    for ttype in ttypes:
+        ttype_ind = np.flatnonzero(labels==ttype)
+        keep = r.randint(0, high=np.size(ttype_ind), size=n_samples)
+        keep_ind = ttype_ind[keep]
+        train_ind = np.concatenate([train_ind,keep_ind])
+    return train_ind

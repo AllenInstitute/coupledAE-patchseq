@@ -197,3 +197,41 @@ class Model_TE(tf.keras.Model):
         zE = self.encoder_E(inputs[1],training=train_E)
         XrE = self.decoder_E(zE,training=train_E)
         return zT,zE,XrT,XrE
+
+
+class Model_T(tf.keras.Model):
+    """Single AE agent for transcriptomic data"""
+
+    def __init__(self,
+               T_output_dim,
+               T_intermediate_dim=50,
+               T_dropout=0.5,
+               latent_dim=3,
+               name='T',
+               **kwargs):
+        """
+        Encoder for transcriptomic data
+        Args:
+            T_output_dim: Number of genes in T data
+            T_intermediate_dim: hidden layer dims for T model
+            T_dropout: dropout for T data
+            latent_dim: dim for representations
+            name: T
+        """
+        super(Model_T, self).__init__(name=name, **kwargs)
+        self.encoder_T = Encoder_T(dropout_rate=T_dropout,latent_dim=latent_dim, intermediate_dim=T_intermediate_dim, name='Encoder_T')
+        self.decoder_T = Decoder_T(output_dim=T_output_dim, intermediate_dim=T_intermediate_dim, name='Decoder_T')
+        
+
+    def call(self, inputs, train_T=True, train_E=True):
+        """
+        Encoder for transcriptomic data
+        Args:
+            training: Toggles dropout/noise for T and E arms. Used to report training/validation losses without the noise.
+            train_both: Toggles dropout for only the T arm. Used to fine tune the E representation.
+        """
+        #T arm
+        zT = self.encoder_T(inputs,training=train_T)
+        XrT = self.decoder_T(zT,training=train_T)
+    
+        return zT,XrT
