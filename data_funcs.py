@@ -228,14 +228,15 @@ def TEM_get_splits(matdict):
 
     return cvset,testset
 
-def labelwise_equal_samples(labels,n_samples=60,random_seed=0):
+def labelwise_samples(labels,min_samples=60,max_samples=100,random_seed=0):
     '''
-    Returns indices of random equal number of samples from `labels`
+    Discards labels with less than `min_sample` number of samples. Draws `max_sample` number of samples from the remaining labels.
+    
     '''
 
     #Remove labels that have fewer than the number of samples required
     ttypes,counts = np.unique(labels,return_counts=True)
-    keep_ind = counts>n_samples
+    keep_ind = counts>=min_samples
     for ttype in ttypes[~keep_ind]:
         print('Removing: {}.'.format(ttype))
     ttypes = ttypes[keep_ind]
@@ -246,7 +247,6 @@ def labelwise_equal_samples(labels,n_samples=60,random_seed=0):
     train_ind = np.empty(shape=(0,),dtype=int)
     for ttype in ttypes:
         ttype_ind = np.flatnonzero(labels==ttype)
-        keep = r.randint(0, high=np.size(ttype_ind), size=n_samples)
-        keep_ind = ttype_ind[keep]
+        keep_ind = r.choice(ttype_ind, size=np.minimum(max_samples,ttype_ind.size), replace=False)
         train_ind = np.concatenate([train_ind,keep_ind])
     return train_ind
