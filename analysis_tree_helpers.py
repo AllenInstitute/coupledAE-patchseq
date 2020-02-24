@@ -220,8 +220,29 @@ class HTree():
             print('Node not found in current tree')
         return HTree(htree_df=subtree_df)
 
+    def update_layout(self):
+        '''Update `x` positions of tree based on newly assigned leaf nodes.
+        '''
+        #Update x position for leaf nodes to evenly distribute them.
+        all_child = self.child[self.isleaf]
+        all_child_x = self.x[self.isleaf]
+        sortind = np.argsort(all_child_x)
+        new_x = 0
+        for (this_child,this_x) in zip(all_child[sortind],all_child_x[sortind]):
+            self.x[self.child==this_child]=new_x
+            new_x = new_x+1
+            
+            
+        parents = self.child[~self.isleaf].tolist() 
+        for node in parents:
+            descendant_leaf_nodes = self.get_descendants(node=node,leafonly=True)
+            parent_ind = np.isin(self.child,[node])
+            descendant_leaf_ind = np.isin(self.child,descendant_leaf_nodes)
+            self.x[parent_ind] = np.mean(self.x[descendant_leaf_ind])
+        return 
 
-def do_merges(labels, list_changes=[], n_merges=0):
+
+def do_merges(labels, list_changes=[], n_merges=0, verbose=False):
     """Perform n_merges on an array of labels using the list of changes at each merge. 
     If labels are leaf node labels, then the do_merges() gives successive horizontal cuts of the hierarchical tree.
     
@@ -235,7 +256,7 @@ def do_merges(labels, list_changes=[], n_merges=0):
     Returns:
         labels -- array of updated labels. Same size as input, non-unique entries are allowed.
     """
-
+    assert isinstance(labels,np.ndarray), 'labels must be a numpy array'
     for i in range(n_merges):
         if i < len(list_changes):
             c_nodes_list = list_changes[i][0]
@@ -243,7 +264,8 @@ def do_merges(labels, list_changes=[], n_merges=0):
             for c_node in c_nodes_list:
                 n_samples = np.sum([labels == c_node])
                 labels[labels == c_node] = p_node
-                # print(n_samples,' in ',c_node, ' --> ' ,p_node)
+                if verbose:
+                    print(n_samples,' in ',c_node, ' --> ' ,p_node)
         else:
             print('Exiting after performing max allowed merges =',
                   len(list_changes))

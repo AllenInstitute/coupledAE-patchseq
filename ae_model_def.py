@@ -1,8 +1,8 @@
 import tensorflow as tf
-from tensorflow.keras import layers
+from tensorflow import keras
 
 
-class Encoder_T(layers.Layer):
+class Encoder_T(keras.layers.Layer):
     """Maps patch-seq transcriptomic profiles to latent space"""
 
     def __init__(self,
@@ -21,13 +21,13 @@ class Encoder_T(layers.Layer):
             name: 'Encoder_T'
         """
         super(Encoder_T, self).__init__(name=name, **kwargs)
-        self.drp = layers.Dropout(rate=dropout_rate)
-        self.fc0 = layers.Dense(intermediate_dim, activation='relu', name=name+'fc0')
-        self.fc1 = layers.Dense(intermediate_dim, activation='relu', name=name+'fc1')
-        self.fc2 = layers.Dense(intermediate_dim, activation='relu', name=name+'fc2')
-        self.fc3 = layers.Dense(intermediate_dim, activation='relu', name=name+'fc3')
-        self.fc4 = layers.Dense(latent_dim, activation='linear', name=name+'fc4')
-        self.bn = layers.BatchNormalization(scale=False, center=False, epsilon=1e-10, momentum=0.0, name=name+'BN')
+        self.drp = keras.layers.Dropout(rate=dropout_rate)
+        self.fc0 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc0')
+        self.fc1 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc1')
+        self.fc2 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc2')
+        self.fc3 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc3')
+        self.fc4 = keras.layers.Dense(latent_dim, activation='linear', name=name+'fc4')
+        self.bn = keras.layers.BatchNormalization(scale=False, center=False, epsilon=1e-10, momentum=0.0, name=name+'BN')
         return
 
     def call(self, inputs, training=True):
@@ -41,7 +41,7 @@ class Encoder_T(layers.Layer):
         return z
 
 
-class Decoder_T(layers.Layer):
+class Decoder_T(keras.layers.Layer):
     """Reconstructs gene profile from latent space position"""
 
     def __init__(self,
@@ -58,11 +58,11 @@ class Decoder_T(layers.Layer):
             name: 'Decoder_T'
         """
         super(Decoder_T, self).__init__(name=name, **kwargs)
-        self.fc0 = layers.Dense(intermediate_dim, activation='relu', name='fc0')
-        self.fc1 = layers.Dense(intermediate_dim, activation='relu', name='fc1')
-        self.fc2 = layers.Dense(intermediate_dim, activation='relu', name='fc2')
-        self.fc3 = layers.Dense(intermediate_dim, activation='relu', name='fc3')
-        self.Xout = layers.Dense(output_dim, activation='relu', name='Xout')
+        self.fc0 = keras.layers.Dense(intermediate_dim, activation='relu', name='fc0')
+        self.fc1 = keras.layers.Dense(intermediate_dim, activation='relu', name='fc1')
+        self.fc2 = keras.layers.Dense(intermediate_dim, activation='relu', name='fc2')
+        self.fc3 = keras.layers.Dense(intermediate_dim, activation='relu', name='fc3')
+        self.Xout = keras.layers.Dense(output_dim, activation='relu', name='Xout')
         return
 
     def call(self, inputs, training=True):
@@ -74,7 +74,7 @@ class Decoder_T(layers.Layer):
         return x
 
 
-class Encoder_E(layers.Layer):
+class Encoder_E(keras.layers.Layer):
     """Maps patch-seq electrophysiology profiles to latent space"""
 
     def __init__(self,
@@ -94,14 +94,14 @@ class Encoder_E(layers.Layer):
             intermediate_dim: Number of units in hidden layers
         """
         super(Encoder_E, self).__init__(name=name, **kwargs)
-        self.gnoise = layers.GaussianNoise(stddev=gaussian_noise_sd)
-        self.drp = layers.Dropout(rate=dropout_rate)
-        self.fc0 = layers.Dense(intermediate_dim, activation='relu', name=name+'fc0')
-        self.fc1 = layers.Dense(intermediate_dim, activation='relu', name=name+'fc1')
-        self.fc2 = layers.Dense(intermediate_dim, activation='relu', name=name+'fc2')
-        self.fc3 = layers.Dense(intermediate_dim, activation='relu', name=name+'fc3')
-        self.fc4 = layers.Dense(latent_dim, activation='linear', name=name+'fc4')
-        self.bn = layers.BatchNormalization(scale=False, center=False, epsilon=1e-10, momentum=0.0, name=name+'BN')
+        self.gnoise = keras.layers.GaussianNoise(stddev=gaussian_noise_sd)
+        self.drp = keras.layers.Dropout(rate=dropout_rate)
+        self.fc0 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc0')
+        self.fc1 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc1')
+        self.fc2 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc2')
+        self.fc3 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc3')
+        self.fc4 = keras.layers.Dense(latent_dim, activation='linear', name=name+'fc4')
+        self.bn = keras.layers.BatchNormalization(scale=False, center=False, epsilon=1e-10, momentum=0.0, name=name+'BN')
         return
 
     def call(self, inputs, training=True):
@@ -115,7 +115,7 @@ class Encoder_E(layers.Layer):
         z = self.bn(x, training=training)
         return z
 
-class Decoder_E(layers.Layer):
+class Decoder_E(keras.layers.Layer):
     """Reconstructs gene profile from latent space position"""
 
     def __init__(self,
@@ -128,15 +128,15 @@ class Decoder_E(layers.Layer):
         Initializes the Encoder for electrophysiology data.
         Args:
             output_dim: Should be same as input dim if using as an autoencoder
-            intermediate_dim: Number of units in hidden layers
+            intermediate_dim: Number of units in hidden keras.layers
             training: boolean value to indicate model operation mode
         """
         super(Decoder_E, self).__init__(name=name, **kwargs)
-        self.fc0  = layers.Dense(intermediate_dim, activation='relu',name=name+'fc0')
-        self.fc1  = layers.Dense(intermediate_dim, activation='relu',name=name+'fc1')
-        self.fc2  = layers.Dense(intermediate_dim, activation='relu',name=name+'fc2')
-        self.fc3  = layers.Dense(intermediate_dim, activation='relu',name=name+'fc3')
-        self.Xout = layers.Dense(output_dim, activation='linear',name=name+'Xout')
+        self.fc0  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc0')
+        self.fc1  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc1')
+        self.fc2  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc2')
+        self.fc3  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc3')
+        self.Xout = keras.layers.Dense(output_dim, activation='linear',name=name+'Xout')
         return
 
     def call(self, inputs, training=True):
@@ -196,6 +196,8 @@ class Model_TE(tf.keras.Model):
         #E arm
         zE = self.encoder_E(inputs[1],training=train_E)
         XrE = self.decoder_E(zE,training=train_E)
+
+
         return zT,zE,XrT,XrE
 
 
@@ -235,3 +237,102 @@ class Model_T(tf.keras.Model):
         XrT = self.decoder_T(zT,training=train_T)
     
         return zT,XrT
+
+
+class Model_TE_v2(tf.keras.Model):
+    """Combine two AE agents"""
+
+    def __init__(self,
+               T_output_dim,
+               E_output_dim,
+               T_intermediate_dim=50,
+               E_intermediate_dim=40,
+               alpha_T=1.0,
+               alpha_E=1.0,
+               lambda_TE=1.0,
+               T_dropout=0.5,
+               E_gnoise_sd=0.05,
+               E_dropout=0.1,
+               latent_dim=3,
+               name='TE',
+               **kwargs):
+        """
+        Encoder for transcriptomic data
+        Args:
+            T_output_dim: Number of genes in T data
+            E_output_dim: Number of features in E data
+            T_intermediate_dim: hidden layer dims for T model
+            E_intermediate_dim: hidden layer dims for E model
+            T_dropout: dropout for T data
+            E_gnoise_sd: gaussian noise std for E data
+            E_dropout: dropout for E data
+            latent_dim: dim for representations
+            name: TE
+        """
+        super(Model_TE_v2, self).__init__(name=name, **kwargs)
+        self.alpha_T = alpha_T
+        self.alpha_E = alpha_E
+        self.lambda_TE = lambda_TE
+
+        self.encoder_T = Encoder_T(dropout_rate=T_dropout,latent_dim=latent_dim, intermediate_dim=T_intermediate_dim, name='Encoder_T')
+        self.encoder_E = Encoder_E(gaussian_noise_sd=E_gnoise_sd, dropout_rate=E_dropout, latent_dim=latent_dim, intermediate_dim=E_intermediate_dim, name='Encoder_E')
+        
+        self.decoder_T = Decoder_T(output_dim=T_output_dim, intermediate_dim=T_intermediate_dim, name='Decoder_T')
+        self.decoder_E = Decoder_E(output_dim=E_output_dim, intermediate_dim=E_intermediate_dim, name='Decoder_E')
+
+    def call(self, inputs, train_T=True, train_E=True):
+        """
+        Encoder for transcriptomic data
+        Args:
+            training: Toggles dropout/noise for T and E arms. Used to report training/validation losses without the noise.
+            train_both: Toggles dropout for only the T arm. Used to fine tune the E representation.
+        """
+        #T arm
+        XT = inputs[0]
+        zT = self.encoder_T(XT,training=train_T)
+        XrT = self.decoder_T(zT,training=train_T)
+        
+        #E arm
+        XE = inputs[1]
+        zE = self.encoder_E(XE,training=train_E)
+        XrE = self.decoder_E(zE,training=train_E)
+
+        mse_loss_T = tf.reduce_mean(tf.math.squared_difference(XT, XrT))
+        mse_loss_E = tf.reduce_mean(tf.math.squared_difference(XE, XrE))
+        cpl_loss_TE = min_var_loss(zT, zE)
+
+        #Append to keras model losses for gradient calculations
+        self.add_loss(tf.constant(self.alpha_T,dtype=tf.float32)*mse_loss_T)
+        self.add_loss(tf.constant(self.alpha_E,dtype=tf.float32)*mse_loss_E)
+        self.add_loss(tf.constant(self.lambda_TE,dtype=tf.float32)*cpl_loss_TE)
+
+        #For logging
+        self.mse_loss_T = mse_loss_T
+        self.mse_loss_E = mse_loss_E
+        self.mse_loss_TE = cpl_loss_TE
+        return zT,zE,XrT,XrE
+        
+
+def min_var_loss(zi, zj, Wij=None):
+    """
+    SVD is calculated over entire batch. MSE is calculated over only paired entries within batch
+    Args:
+        zi: i-th representation
+        zj: j-th representation (same size as zi)
+        Wij: indicator vector (1 if samples are matched, 0 otherwise)
+    """
+    batch_size = tf.shape(zi)[0]
+    if Wij is None:
+        Wij_ = tf.ones([batch_size, ])
+    else:
+        Wij_ = tf.reshape(Wij, [batch_size, ])
+
+    zi_paired = tf.boolean_mask(zi, tf.math.greater(Wij_, 1e-2))
+    zj_paired = tf.boolean_mask(zj, tf.math.greater(Wij_, 1e-2))
+    Wij_paired = tf.boolean_mask(Wij_, tf.math.greater(Wij_, 1e-2))
+
+    vars_j_ = tf.square(tf.linalg.svd(zj - tf.reduce_mean(zj, axis=0), compute_uv=False))/tf.cast(batch_size - 1, tf.float32)
+    vars_j  = tf.where(tf.math.is_nan(vars_j_), tf.zeros_like(vars_j_) + tf.cast(1e-2,dtype=tf.float32), vars_j_)
+    weighted_distance = tf.multiply(tf.sqrt(tf.reduce_sum(tf.math.squared_difference(zi_paired, zj_paired),axis=1)),Wij_paired)
+    loss_ij = tf.reduce_mean(weighted_distance,axis=None)/tf.maximum(tf.reduce_min(vars_j, axis=None),tf.cast(1e-2,dtype=tf.float32))
+    return loss_ij
