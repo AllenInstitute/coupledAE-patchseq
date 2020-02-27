@@ -87,6 +87,7 @@ def extract_arrays(ps_Tcat_dat, ps_Tcat_ann, ispairedT, ps_Ecat_dat, ispairedE, 
     matdict['clusterID']       = ps_Tcat_ann.loc[:,'cluster_id'].values.astype(int)
     matdict['cluster_color']   = ps_Tcat_ann.loc[:,'cluster_color'].values
     matdict['sample_id']       = ps_Tcat_ann.loc[:,'sample_id'].values
+    matdict['map_conf']  = ps_Tcat_ann.loc[:,'map_conf'].values
 
     matdict['E_dat']           = ps_Ecat_dat.values[:,1:].astype(np.float32)    
     matdict['E_spec_id_label'] = ps_Ecat_dat.loc[:,'spec_id_label'].values.astype(int)
@@ -206,7 +207,7 @@ def TEM_get_splits(matdict):
     Arguments:
         matdict -- output of TEM_rem_lowsampled_classes().
     """
-    assert np.array_equal(matdict['E_spec_id_label'],matdict['E_spec_id_label']),'Sample order is not the same across datasets'
+    assert np.array_equal(matdict['T_spec_id_label'],matdict['E_spec_id_label']),'Sample order or size is not the same across modalities'
     assert np.size(matdict['M_dat'])==np.shape(matdict['T_dat'])[0],'Dataset sizes are mismatched'
     assert np.size(matdict['M_dat'])==np.shape(matdict['E_dat'])[0],'Dataset sizes are mismatched'
     X = matdict['T_dat']
@@ -250,3 +251,93 @@ def labelwise_samples(labels,min_samples=60,max_samples=100,random_seed=0):
         keep_ind = r.choice(ttype_ind, size=np.minimum(max_samples,ttype_ind.size), replace=False)
         train_ind = np.concatenate([train_ind,keep_ind])
     return train_ind
+
+
+def generate_color_ref(ref_types):
+    '''
+    One time use to generate reference color files
+    '''
+    read_file = '/Users/fruity/Dropbox/AllenInstitute/CellTypes/dat/raw/Mouse-V1-ALM-20180520_cpmtop10k_cpm.mat'
+    write_file = '/Users/fruity/Dropbox/AllenInstitute/CellTypes/dat/raw/patchseq-v4/type_color_reference.csv'
+    D = sio.loadmat(read_file,squeeze_me=True)
+    ctype_list = []
+    col_list = []
+    for ctype,col in list(set(zip(D['cluster'],D['cluster_color']))):
+        ctype_list.append(ctype)
+        col_list.append(col)
+    D = pd.DataFrame({'celltype':ctype_list,'cluster_color':col_list})
+    D = D.loc[D['celltype'].isin(np.unique(ref_types))]
+    D = D.reset_index(drop=True)
+    D.to_csv(write_file,index=False)
+    return
+
+
+def TE_get_splits(matdict):
+    """Creates 1 test set, and from the remaining cells creates 9 other sets for 9-fold cross validation
+    Data in the test and validation sets is stratified based on T cluster labels.
+    
+    Returns:
+        cvset -- list with 9 cross-validation folds. Train indices: cvset[0]['train'] and Validation indices: cvset[0]['val']
+        testset -- indices for test cells
+    Arguments:
+        matdict -- dataset dictionary
+    """
+    assert np.array_equal(matdict['T_spec_id_label'],matdict['E_spec_id_label']),'Sample order is not the same across datasets'
+    X = matdict['T_dat']
+    y = matdict['cluster']
+
+    #Split data into 10 folds first deterministically.
+    skf = StratifiedKFold(n_splits=10, random_state=0, shuffle=True)
+    ind_dict = [{'train':train_ind, 'val':val_ind} for train_ind, val_ind in skf.split(X, y)]
+
+    #Define the test set
+    testset = ind_dict[0]['val']
+
+    #Remove test cells from remaining folds (expected to overlap only with the training cells).
+    cvset = []
+    for i in range(1,len(ind_dict),1):
+        ind_dict[i]['train'] = np.setdiff1d(ind_dict[i]['train'],testset)
+        ind_dict[i]['val'] = np.setdiff1d(ind_dict[i]['val'],testset)
+        cvset.append(ind_dict[i])
+
+    return cvset,testset
+
+
+
+def TE_get_splits_50(matdict):
+    """Creates 1 test set, and from the remaining cells creates 45 other sets for 45-fold cross validation
+    Data in the test and validation sets is stratified based on T cluster labels.
+    
+    Returns:
+        cvset -- list with 45 cross-validation folds. Train indices: cvset[0]['train'] and Validation indices: cvset[0]['val']
+        testset -- indices for test cells
+    Arguments:
+        matdict -- dataset dictionary
+    """
+
+    skf = StratifiedKFold(n_splits=50, random_state=0, shuffle=True)
+    ind_dict = [{'train':train_ind, 'val':val_ind} for train_ind, val_ind in skf.split(X=np.zeros(shape=matdict['cluster'].shape), y=matdict['cluster'])]
+
+    #Define the test set
+    testset = []
+    for i in range(45,50,1):
+        testset.append(ind_dict[i]['val'])
+    testset = np.concatenate(testset)
+    
+    cvset = []
+    for i in range(1,len(ind_dict),1):
+        ind_dict[i]['train'] = np.setdiff1d(ind_dict[i]['train'],testset)
+        ind_dict[i]['val'] = np.setdiff1d(ind_dict[i]['val'],testset)
+        cvset.append(ind_dict[i])
+
+    return cvset,testset
+
+
+def TE_high_conf(matdict):
+    """Restricts the matched TE dataset to only cells that are mapped (T) with high confidence.
+    
+    Returns:
+        matdict -- dictionary with matched TE data, containing only cells mapped with high confidence.
+    """
+    pass
+    return matdict

@@ -293,12 +293,13 @@ class Model_TE_v2(tf.keras.Model):
         XrT = self.decoder_T(zT,training=train_T)
         
         #E arm
-        XE = inputs[1]
+        XE = tf.where(tf.math.is_nan(inputs[1]),x=0.0,y=inputs[1]) #Mask nans
+        maskE = tf.where(tf.math.is_nan(inputs[1]),x=0.0,y=1.0)    #Get mask to ignore error contribution
         zE = self.encoder_E(XE,training=train_E)
         XrE = self.decoder_E(zE,training=train_E)
 
         mse_loss_T = tf.reduce_mean(tf.math.squared_difference(XT, XrT))
-        mse_loss_E = tf.reduce_mean(tf.math.squared_difference(XE, XrE))
+        mse_loss_E = tf.reduce_mean(tf.multiply(tf.math.squared_difference(XE, XrE),maskE))
         cpl_loss_TE = min_var_loss(zT, zE)
 
         #Append to keras model losses for gradient calculations
@@ -332,7 +333,8 @@ def min_var_loss(zi, zj, Wij=None):
     Wij_paired = tf.boolean_mask(Wij_, tf.math.greater(Wij_, 1e-2))
 
     vars_j_ = tf.square(tf.linalg.svd(zj - tf.reduce_mean(zj, axis=0), compute_uv=False))/tf.cast(batch_size - 1, tf.float32)
-    vars_j  = tf.where(tf.math.is_nan(vars_j_), tf.zeros_like(vars_j_) + tf.cast(1e-2,dtype=tf.float32), vars_j_)
-    weighted_distance = tf.multiply(tf.sqrt(tf.reduce_sum(tf.math.squared_difference(zi_paired, zj_paired),axis=1)),Wij_paired)
-    loss_ij = tf.reduce_mean(weighted_distance,axis=None)/tf.maximum(tf.reduce_min(vars_j, axis=None),tf.cast(1e-2,dtype=tf.float32))
+    vars_j  = tf.where(tf.math.is_nan(vars_j_), tf.cast(1e-2,dtype=tf.float32), vars_j_)
+    sqdist_paired = tf.multiply(tf.reduce_sum(tf.math.squared_difference(zi_paired, zj_paired),axis=1),Wij_paired)
+    mean_sqdist = tf.reduce_sum(sqdist_paired,axis=None)/tf.reduce_sum(Wij_paired,axis=None)
+    loss_ij = mean_sqdist/tf.maximum(tf.reduce_min(vars_j, axis=None),tf.cast(1e-2,dtype=tf.float32))
     return loss_ij

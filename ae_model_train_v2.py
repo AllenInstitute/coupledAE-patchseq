@@ -1,10 +1,11 @@
 #Model updated for TF2.0
 #Model uses different dataset - 
-# 1. no M, 
+# 1. no M
 # 2. T and E data are matched 
 # 3. Larger number of folds for cross validation (each set will have larger number of training samples)
 
-#python -m ae_model_train_v2 --batchsize 100 --cvfold 0 --alpha_T 1.0 --alpha_E 1.0 --lambda_TE 0.0 --latent_dim 3 --n_epochs 10 --n_steps_per_epoch 500 --ckpt_save_freq 2 --n_finetuning_steps 10 --run_iter 0 --model_id 'v1' --exp_name 'TEST'
+#python -m ae_model_train_v2 --batchsize 100 --cvfold 0 --Edat ipfx --alpha_T 1.0 --alpha_E 1.0 --lambda_TE 0.0 --latent_dim 3 --n_epochs 10 --n_steps_per_epoch 500 --ckpt_save_freq 1000 --n_finetuning_steps 10 --run_iter 0 --model_id 'v2' --exp_name 'TEST'
+
 import argparse
 import os
 import pdb
@@ -17,7 +18,7 @@ import time
 import numpy as np
 import scipy.io as sio
 import tensorflow as tf
-from data_funcs import TE_get_splits
+from data_funcs import TE_get_splits_50
 from ae_model_def import Model_TE_v2
 import csv
 from timebudget import timebudget
@@ -25,8 +26,8 @@ from timebudget import timebudget
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--batchsize",         default=200,                     type=int,     help="Batch size")
-parser.add_argument("--cvfold",            default=0,                       type=int,     help="9 fold CV sets (range from 0 to 8)")
-
+parser.add_argument("--cvfold",            default=0,                       type=int,     help="45 fold CV sets (range from 0 to 44)")
+parser.add_argument("--Edat",              default='spcifpx',               type=str,     help="`spc` or `ipfx` or `spcifpx`")
 parser.add_argument("--alpha_T",           default=1.0,                     type=float,   help="T Reconstruction loss weight")
 parser.add_argument("--alpha_E",           default=0.1,                     type=float,   help="E Reconstruction loss weight")
 parser.add_argument("--lambda_TE",         default=1.0,                     type=float,   help="Coupling loss weight")
@@ -39,8 +40,8 @@ parser.add_argument("--ckpt_save_freq",    default=100,                     type
 parser.add_argument("--n_finetuning_steps",default=100,                     type=int,     help="Number of fine tuning steps for E agent")
 
 parser.add_argument("--run_iter",          default=0,                       type=int,     help="Run-specific id")
-parser.add_argument("--model_id",          default='v1',                    type=str,     help="Model-specific id")
-parser.add_argument("--exp_name",          default='TE_Patchseq_Bioarxiv',  type=str,     help="Experiment set")
+parser.add_argument("--model_id",          default='v2',                    type=str,     help="Model-specific id")
+parser.add_argument("--exp_name",          default='HparamChecks_v2',  type=str,     help="Experiment set")
 
 def set_paths(exp_name='TEMP'):
     from pathlib import Path   
@@ -90,14 +91,15 @@ class Datagen():
         else:
             raise StopIteration
 
-def main(batchsize=200, cvfold=0,
+def main(batchsize=200, cvfold=0, Edat = 'spcifpx',
          alpha_T=1.0,alpha_E=1.0,alpha_M=1.0,lambda_TE=0.0,
          latent_dim=3,n_epochs=1500, n_steps_per_epoch=500, ckpt_save_freq=100,
          n_finetuning_steps=100,
-         run_iter=0, model_id='v1', exp_name='TE_Patchseq_Bioarxiv'):
+         run_iter=0, model_id='v2', exp_name='HparamChecks_v2'):
     
     dir_pth = set_paths(exp_name=exp_name)
     fileid = model_id + \
+        '_Edat_' + str(Edat) + \
         '_aT_' + str(alpha_T) + \
         '_aE_' + str(alpha_E) + \
         '_aM_' + str(alpha_M) + \
@@ -110,17 +112,27 @@ def main(batchsize=200, cvfold=0,
         '_ri_' + str(run_iter)
     fileid = fileid.replace('.', '-')
 
+    if Edat == 'spc':
+        Edat = 'E_dat'
+    elif Edat == 'ipfx':
+        Edat = 'E_feature'
+    elif Edat == 'spcipfx':
+        Edat = 'E_spcipfx'
+    else:
+        raise ValueError('Edat must be spc or ipfx!')
+ 
     #Data operations and definitions:
-    D = sio.loadmat(dir_pth['data']+'PS_v4_beta_0-4_allT_equalTE.mat',squeeze_me=True)
-    cvset,testset = TE_get_splits(D)
+    D = sio.loadmat(dir_pth['data']+'PS_v5_beta_0-4_pc_ipxf_eqTE.mat',squeeze_me=True)
+    D['E_spcipfx'] = np.concatenate([D['E_dat'],D['E_feature']],axis = 1)
+    cvset,testset = TE_get_splits_50(matdict=D)
 
     train_ind = cvset[cvfold]['train']
     train_T_dat = D['T_dat'][train_ind,:]
-    train_E_dat = D['E_dat'][train_ind,:]
+    train_E_dat = D[Edat][train_ind,:]
 
     val_ind = cvset[cvfold]['val']
     val_T_dat = D['T_dat'][val_ind,:]
-    val_E_dat = D['E_dat'][val_ind,:]
+    val_E_dat = D[Edat][val_ind,:]
 
     maxsteps = tf.constant(n_epochs*n_steps_per_epoch)
     batchsize = tf.constant(batchsize)
@@ -192,7 +204,7 @@ def main(batchsize=200, cvfold=0,
     
     def save_results(this_model,Data,fname):
         all_T_dat = tf.constant(Data['T_dat'])
-        all_E_dat = tf.constant(Data['E_dat'])
+        all_E_dat = tf.constant(Data[Edat])
         zT, zE, XrT, XrE = this_model((all_T_dat, all_E_dat), training=False)
         XrE_from_XT = this_model.decoder_E(zT, training=False)
         XrT_from_XE = this_model.decoder_T(zE, training=False)
@@ -244,6 +256,7 @@ def main(batchsize=200, cvfold=0,
             
     #Save model weights on exit
     model_TE.save_weights(dir_pth['result']+fileid+'-weights.h5')
+    
     #Save reconstructions and results for the full dataset:
     save_results(this_model=model_TE,Data=D,fname=dir_pth['result']+fileid+'-summary.mat')
 
@@ -272,6 +285,7 @@ def main(batchsize=200, cvfold=0,
     
     #Save model weights on exit
     model_TE.save_weights(dir_pth['result']+fileid+str(n_finetuning_steps)+'_ft-weights.h5')
+
     #Save reconstructions and results for the full dataset:
     save_results(this_model=model_TE,Data=D,fname=dir_pth['result']+fileid+str(n_finetuning_steps)+'_ft-summary.mat')    
     return
