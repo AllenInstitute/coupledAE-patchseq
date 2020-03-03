@@ -1,6 +1,11 @@
 import tensorflow as tf
 from tensorflow import keras
 
+from tensorflow.python.keras import backend as K
+from tensorflow.python.keras.engine.base_layer import Layer
+from tensorflow.python.keras.utils import tf_utils
+from tensorflow.python.ops import array_ops
+import pdb
 
 class Encoder_T(keras.layers.Layer):
     """Maps patch-seq transcriptomic profiles to latent space"""
@@ -94,7 +99,7 @@ class Encoder_E(keras.layers.Layer):
             intermediate_dim: Number of units in hidden layers
         """
         super(Encoder_E, self).__init__(name=name, **kwargs)
-        self.gnoise = keras.layers.GaussianNoise(stddev=gaussian_noise_sd)
+        self.gnoise = WeightedGaussianNoise(stddev=gaussian_noise_sd)
         self.drp = keras.layers.Dropout(rate=dropout_rate)
         self.fc0 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc0')
         self.fc1 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc1')
@@ -201,6 +206,46 @@ class Model_TE(tf.keras.Model):
         return zT,zE,XrT,XrE
 
 
+class WeightedGaussianNoise(tf.keras.layers.Layer):
+    """Custom additive zero-centered Gaussian noise. Std is weighted.
+    Arguments:
+        stddev: Can be a scalar or vector
+    Call arguments:
+        inputs: Input tensor (of any rank).
+        training: Python boolean indicating whether the layer should behave in
+        training mode (adding noise) or in inference mode (doing nothing).
+    Input shape:
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+    Output shape:
+        Same shape as input.
+    """
+
+    def __init__(self, stddev, **kwargs):
+        super(WeightedGaussianNoise, self).__init__(**kwargs)
+        self.stddev = stddev
+        return
+
+    def call(self, inputs, training=None):
+        def noised():
+            pdb.set_trace()
+            return inputs + tf.random.normal(array_ops.shape(inputs),
+                                             mean=0.0, stddev=self.stddev,
+                                             dtype=inputs.dtype, seed=None)
+
+        return K.in_train_phase(noised, inputs, training=training)
+
+    def get_config(self):
+        config = {'stddev': self.stddev}
+        base_config = super(WeightedGaussianNoise, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    @tf_utils.shape_type_conversion
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+
 class Model_T(tf.keras.Model):
     """Single AE agent for transcriptomic data"""
 
@@ -251,6 +296,7 @@ class Model_TE_v2(tf.keras.Model):
                alpha_E=1.0,
                lambda_TE=1.0,
                T_dropout=0.5,
+               E_gauss_noise_wt = 1.0,
                E_gnoise_sd=0.05,
                E_dropout=0.1,
                latent_dim=3,
@@ -274,8 +320,9 @@ class Model_TE_v2(tf.keras.Model):
         self.alpha_E = alpha_E
         self.lambda_TE = lambda_TE
 
+        E_gnoise_sd_weighted = E_gauss_noise_wt*E_gnoise_sd
         self.encoder_T = Encoder_T(dropout_rate=T_dropout,latent_dim=latent_dim, intermediate_dim=T_intermediate_dim, name='Encoder_T')
-        self.encoder_E = Encoder_E(gaussian_noise_sd=E_gnoise_sd, dropout_rate=E_dropout, latent_dim=latent_dim, intermediate_dim=E_intermediate_dim, name='Encoder_E')
+        self.encoder_E = Encoder_E(gaussian_noise_sd=E_gnoise_sd_weighted, dropout_rate=E_dropout, latent_dim=latent_dim, intermediate_dim=E_intermediate_dim, name='Encoder_E')
         
         self.decoder_T = Decoder_T(output_dim=T_output_dim, intermediate_dim=T_intermediate_dim, name='Decoder_T')
         self.decoder_E = Decoder_E(output_dim=E_output_dim, intermediate_dim=E_intermediate_dim, name='Decoder_E')
@@ -300,6 +347,7 @@ class Model_TE_v2(tf.keras.Model):
 
         mse_loss_T = tf.reduce_mean(tf.math.squared_difference(XT, XrT))
         mse_loss_E = tf.reduce_mean(tf.multiply(tf.math.squared_difference(XE, XrE),maskE))
+        mse_loss_TE = tf.reduce_mean(tf.math.squared_difference(zT, zE)) #For logging only
         cpl_loss_TE = min_var_loss(zT, zE)
 
         #Append to keras model losses for gradient calculations
@@ -307,10 +355,10 @@ class Model_TE_v2(tf.keras.Model):
         self.add_loss(tf.constant(self.alpha_E,dtype=tf.float32)*mse_loss_E)
         self.add_loss(tf.constant(self.lambda_TE,dtype=tf.float32)*cpl_loss_TE)
 
-        #For logging
+        #For logging only
         self.mse_loss_T = mse_loss_T
         self.mse_loss_E = mse_loss_E
-        self.mse_loss_TE = cpl_loss_TE
+        self.mse_loss_TE = mse_loss_TE
         return zT,zE,XrT,XrE
         
 
@@ -328,13 +376,21 @@ def min_var_loss(zi, zj, Wij=None):
     else:
         Wij_ = tf.reshape(Wij, [batch_size, ])
 
+    #Masking gets rid of unpaired entries
     zi_paired = tf.boolean_mask(zi, tf.math.greater(Wij_, 1e-2))
     zj_paired = tf.boolean_mask(zj, tf.math.greater(Wij_, 1e-2))
     Wij_paired = tf.boolean_mask(Wij_, tf.math.greater(Wij_, 1e-2))
 
-    vars_j_ = tf.square(tf.linalg.svd(zj - tf.reduce_mean(zj, axis=0), compute_uv=False))/tf.cast(batch_size - 1, tf.float32)
+    #SVD calculated over all entries in the batch
+    vars_j_ = tf.square(tf.reduce_min(tf.linalg.svd(zj - tf.reduce_mean(zj, axis=0), compute_uv=False)))/tf.cast(batch_size - 1, tf.float32)
     vars_j  = tf.where(tf.math.is_nan(vars_j_), tf.cast(1e-2,dtype=tf.float32), vars_j_)
+
+    vars_i_ = tf.square(tf.reduce_min(tf.linalg.svd(zi - tf.reduce_mean(zi, axis=0), compute_uv=False)))/tf.cast(batch_size - 1, tf.float32)
+    vars_i  = tf.where(tf.math.is_nan(vars_i_), tf.cast(1e-2,dtype=tf.float32), vars_i_)
+
+    #Wij_paired is the weight of matched pairs
     sqdist_paired = tf.multiply(tf.reduce_sum(tf.math.squared_difference(zi_paired, zj_paired),axis=1),Wij_paired)
+    
     mean_sqdist = tf.reduce_sum(sqdist_paired,axis=None)/tf.reduce_sum(Wij_paired,axis=None)
-    loss_ij = mean_sqdist/tf.maximum(tf.reduce_min(vars_j, axis=None),tf.cast(1e-2,dtype=tf.float32))
+    loss_ij = mean_sqdist/tf.maximum(tf.reduce_min([vars_i,vars_j], axis=None),tf.cast(1e-2,dtype=tf.float32))
     return loss_ij

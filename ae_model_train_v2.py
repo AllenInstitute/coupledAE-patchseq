@@ -27,7 +27,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("--batchsize",         default=200,                     type=int,     help="Batch size")
 parser.add_argument("--cvfold",            default=0,                       type=int,     help="45 fold CV sets (range from 0 to 44)")
-parser.add_argument("--Edat",              default='spcifpx',               type=str,     help="`spc` or `ipfx` or `spcifpx`")
+parser.add_argument("--Edat",              default='pcipfx',               type=str,      help="`pc` or `ipfx` or `pcifpx`")
 parser.add_argument("--alpha_T",           default=1.0,                     type=float,   help="T Reconstruction loss weight")
 parser.add_argument("--alpha_E",           default=0.1,                     type=float,   help="E Reconstruction loss weight")
 parser.add_argument("--lambda_TE",         default=1.0,                     type=float,   help="Coupling loss weight")
@@ -40,8 +40,8 @@ parser.add_argument("--ckpt_save_freq",    default=100,                     type
 parser.add_argument("--n_finetuning_steps",default=100,                     type=int,     help="Number of fine tuning steps for E agent")
 
 parser.add_argument("--run_iter",          default=0,                       type=int,     help="Run-specific id")
-parser.add_argument("--model_id",          default='v2',                    type=str,     help="Model-specific id")
-parser.add_argument("--exp_name",          default='HparamChecks_v2',  type=str,     help="Experiment set")
+parser.add_argument("--model_id",          default='v3',                    type=str,     help="Model-specific id")
+parser.add_argument("--exp_name",          default='TE_hparams',            type=str,     help="Experiment set")
 
 def set_paths(exp_name='TEMP'):
     from pathlib import Path   
@@ -91,18 +91,17 @@ class Datagen():
         else:
             raise StopIteration
 
-def main(batchsize=200, cvfold=0, Edat = 'spcifpx',
-         alpha_T=1.0,alpha_E=1.0,alpha_M=1.0,lambda_TE=0.0,
+def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
+         alpha_T=1.0,alpha_E=1.0,lambda_TE=1.0,
          latent_dim=3,n_epochs=1500, n_steps_per_epoch=500, ckpt_save_freq=100,
          n_finetuning_steps=100,
-         run_iter=0, model_id='v2', exp_name='HparamChecks_v2'):
+         run_iter=0, model_id='v3', exp_name='TE_hparams'):
     
     dir_pth = set_paths(exp_name=exp_name)
     fileid = model_id + \
         '_Edat_' + str(Edat) + \
         '_aT_' + str(alpha_T) + \
         '_aE_' + str(alpha_E) + \
-        '_aM_' + str(alpha_M) + \
         '_cs_' + str(lambda_TE) + \
         '_ld_' + str(latent_dim) + \
         '_bs_' + str(batchsize) + \
@@ -112,18 +111,18 @@ def main(batchsize=200, cvfold=0, Edat = 'spcifpx',
         '_ri_' + str(run_iter)
     fileid = fileid.replace('.', '-')
 
-    if Edat == 'spc':
-        Edat = 'E_dat'
+    if Edat == 'pc':
+        Edat = 'E_pc_scaled'
     elif Edat == 'ipfx':
         Edat = 'E_feature'
-    elif Edat == 'spcipfx':
-        Edat = 'E_spcipfx'
+    elif Edat == 'pcipfx':
+        Edat = 'E_pcipxf'
     else:
         raise ValueError('Edat must be spc or ipfx!')
  
     #Data operations and definitions:
-    D = sio.loadmat(dir_pth['data']+'PS_v5_beta_0-4_pc_ipxf_eqTE.mat',squeeze_me=True)
-    D['E_spcipfx'] = np.concatenate([D['E_dat'],D['E_feature']],axis = 1)
+    D = sio.loadmat(dir_pth['data']+'PS_v5_beta_0-4_pc_scaled_ipxf_eqTE.mat',squeeze_me=True)
+    D['E_pcipxf'] = np.concatenate([D['E_pc_scaled'],D['E_feature']],axis = 1)
     cvset,testset = TE_get_splits_50(matdict=D)
 
     train_ind = cvset[cvfold]['train']
@@ -133,7 +132,8 @@ def main(batchsize=200, cvfold=0, Edat = 'spcifpx',
     val_ind = cvset[cvfold]['val']
     val_T_dat = D['T_dat'][val_ind,:]
     val_E_dat = D[Edat][val_ind,:]
-
+    
+    Edat_var = np.nanvar(D[Edat],axis=0)
     maxsteps = tf.constant(n_epochs*n_steps_per_epoch)
     batchsize = tf.constant(batchsize)
 
@@ -141,13 +141,15 @@ def main(batchsize=200, cvfold=0, Edat = 'spcifpx',
     optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
     train_generator = tf.data.Dataset.from_generator(Datagen,output_types=(tf.float32, tf.float32),
                                                      args=(maxsteps,batchsize,train_T_dat,train_E_dat))
-
+    
+    
     model_TE = Model_TE_v2(T_output_dim=train_T_dat.shape[1],
                         E_output_dim=train_E_dat.shape[1],
                         T_intermediate_dim=50,
                         E_intermediate_dim=40,
                         T_dropout=0.5,
-                        E_gnoise_sd=0.05,
+                        E_gauss_noise_wt=Edat_var,
+                        E_gnoise_sd=0.10,
                         E_dropout=0.1,
                         alpha_T = alpha_T,
                         alpha_E = alpha_E,
@@ -156,7 +158,7 @@ def main(batchsize=200, cvfold=0, Edat = 'spcifpx',
                         name='TE')
 
     #Model training functions 
-    @tf.function
+    #@tf.function
     def train_fn(model, XT, XE, train_T=False, train_E=False, subnetwork='all'):
         """Enclose this with tf.function to create a fast training step. Function can be used for inference as well. 
         Arguments:
@@ -276,7 +278,7 @@ def main(batchsize=200, cvfold=0, Edat = 'spcifpx',
         model_TE((val_T_dat, val_E_dat), train_T=False, train_E=False)
         val_log_name, val_log_values = report_losses(model=model_TE, epoch=epoch, datatype='val_', verbose=True)
 
-        with open(dir_pth['logs']+fileid+str(n_finetuning_steps)+'_ft.csv', "a") as logfile:
+        with open(dir_pth['logs']+fileid+'_'+str(n_finetuning_steps)+'_ft.csv', "a") as logfile:
             writer = csv.writer(logfile, delimiter=',')
             #Write headers to the log file
             if epoch == 0:
