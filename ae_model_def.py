@@ -229,7 +229,6 @@ class WeightedGaussianNoise(tf.keras.layers.Layer):
 
     def call(self, inputs, training=None):
         def noised():
-            pdb.set_trace()
             return inputs + tf.random.normal(array_ops.shape(inputs),
                                              mean=0.0, stddev=self.stddev,
                                              dtype=inputs.dtype, seed=None)
