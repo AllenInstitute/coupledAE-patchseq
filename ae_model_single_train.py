@@ -1,5 +1,5 @@
 #Model updated for TF2.0
-#python -m ae_model_train --batchsize 100 --cvfold 0 --alpha_T 1.0 --alpha_E 1.0 --alpha_M 1.0 --lambda_TE 0.0 --latent_dim 3 --n_epochs 10 --n_steps_per_epoch 500 --ckpt_save_freq 2 --n_finetuning_steps 10 --run_iter 0 --model_id 'v1' --exp_name 'TE_Patchseq_Bioarxiv'
+
 import argparse
 import os
 import pdb
@@ -14,7 +14,7 @@ import numpy as np
 import scipy.io as sio
 import tensorflow as tf
 from tensorflow.keras import layers
-from data_funcs import labelwise_equal_samples
+from data_funcs import labelwise_samples
 from ae_model_def import Model_T
 import csv
 from timebudget import timebudget
@@ -22,7 +22,8 @@ from timebudget import timebudget
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--batchsize",         default=200,                     type=int,     help="Batch size")
-parser.add_argument("--n_samples",         default=50,                      type=int,     help="Number of samples per type")
+parser.add_argument("--min_samples",       default=0,                       type=int,     help="Types with less than this are ignored")
+parser.add_argument("--max_samples",       default=100,                     type=int,     help="Number of samples per type")
 parser.add_argument("--data_sampler_seed", default=0,                       type=int,     help="Seed for randomly sampling dataset")
 
 parser.add_argument("--latent_dim",        default=3,                       type=int,     help="Number of latent dims")
@@ -82,7 +83,7 @@ class Datagen():
         else:
             raise StopIteration
 
-def main(batchsize=200, n_samples=0, data_sampler_seed=0,
+def main(batchsize=200, min_samples=0, max_samples=100, data_sampler_seed=0,
          latent_dim=3,n_epochs=1500, n_steps_per_epoch=500, ckpt_save_freq=100,
          n_finetuning_steps=100,
          run_iter=0, model_id='eq_samples', exp_name='FACS_tests'):
@@ -91,7 +92,8 @@ def main(batchsize=200, n_samples=0, data_sampler_seed=0,
     fileid = model_id + \
         '_ld_' + str(latent_dim) + \
         '_bs_' + str(batchsize) + \
-        '_ns_' + str(n_samples) + \
+        '_mins_' + str(min_samples) + \
+        '_maxs_' + str(max_samples) + \
         '_rs_' + str(data_sampler_seed) + \
         '_se_' + str(n_steps_per_epoch) +\
         '_ne_' + str(n_epochs) + \
@@ -100,7 +102,10 @@ def main(batchsize=200, n_samples=0, data_sampler_seed=0,
 
     #Load data:
     D = sio.loadmat(dir_pth['data']+'Mouse-V1-ALM-20180520_GABA_patchseq_v1.mat',squeeze_me=True)    
-    train_ind = labelwise_equal_samples(labels=D['cluster'].copy(),n_samples=n_samples,random_seed=data_sampler_seed)
+    train_ind = labelwise_samples(labels=D['cluster'].copy(),
+                                  min_samples=min_samples,
+                                  max_samples=max_samples,
+                                  random_seed=data_sampler_seed)
 
     train_T_dat = tf.constant(D['log1p'][train_ind,:])
     val_ind = train_ind

@@ -2,7 +2,6 @@ import tensorflow as tf
 from tensorflow import keras
 
 from tensorflow.python.keras import backend as K
-from tensorflow.python.keras.engine.base_layer import Layer
 from tensorflow.python.keras.utils import tf_utils
 from tensorflow.python.ops import array_ops
 import pdb
@@ -141,6 +140,7 @@ class Decoder_E(keras.layers.Layer):
         self.fc1  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc1')
         self.fc2  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc2')
         self.fc3  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc3')
+        self.drp = keras.layers.Dropout(rate=0.1) #Regularization 
         self.Xout = keras.layers.Dense(output_dim, activation='linear',name=name+'Xout')
         return
 
@@ -149,6 +149,7 @@ class Decoder_E(keras.layers.Layer):
         x = self.fc1(x, training=training)
         x = self.fc2(x, training=training)
         x = self.fc3(x, training=training)
+        x = self.drp(x, training=training)
         x = self.Xout(x, training=training)
         return x
 
@@ -206,7 +207,7 @@ class Model_TE(tf.keras.Model):
         return zT,zE,XrT,XrE
 
 
-class WeightedGaussianNoise(tf.keras.layers.Layer):
+class WeightedGaussianNoise(keras.layers.Layer):
     """Custom additive zero-centered Gaussian noise. Std is weighted.
     Arguments:
         stddev: Can be a scalar or vector
@@ -344,14 +345,26 @@ class Model_TE_v2(tf.keras.Model):
         zE = self.encoder_E(XE,training=train_E)
         XrE = self.decoder_E(zE,training=train_E)
 
+        #Cross modal reconstructions - treat zE and zT as constants for this purpose
+        XrT_aug = self.decoder_T(tf.stop_gradient(zE),training=train_T)
+        XrE_aug = self.decoder_E(tf.stop_gradient(zT),training=train_E)
+        
         mse_loss_T = tf.reduce_mean(tf.math.squared_difference(XT, XrT))
         mse_loss_E = tf.reduce_mean(tf.multiply(tf.math.squared_difference(XE, XrE),maskE))
+
+        mse_loss_T_aug = tf.reduce_mean(tf.math.squared_difference(XT, XrT_aug))
+        mse_loss_E_aug = tf.reduce_mean(tf.multiply(tf.math.squared_difference(XE, XrE_aug),maskE))
+
         mse_loss_TE = tf.reduce_mean(tf.math.squared_difference(zT, zE)) #For logging only
         cpl_loss_TE = min_var_loss(zT, zE)
 
         #Append to keras model losses for gradient calculations
         self.add_loss(tf.constant(self.alpha_T,dtype=tf.float32)*mse_loss_T)
         self.add_loss(tf.constant(self.alpha_E,dtype=tf.float32)*mse_loss_E)
+
+        self.add_loss(tf.constant(self.alpha_T,dtype=tf.float32)*mse_loss_T_aug)
+        self.add_loss(tf.constant(self.alpha_E,dtype=tf.float32)*mse_loss_E_aug)
+
         self.add_loss(tf.constant(self.lambda_TE,dtype=tf.float32)*cpl_loss_TE)
 
         #For logging only

@@ -48,7 +48,7 @@ def main(min_component=10, max_component=50,
     alpha_E=1.0
     alpha_M=1.0
     lambda_TE=0.0
-    fiton='zT'
+    fiton=['zT','zE']
 
     #GMM parameters
     n_components_range = np.arange(min_component,max_component)
@@ -72,7 +72,7 @@ def main(min_component=10, max_component=50,
                     '_ri_0500_ft-summary'
         cvfold_fname=cvfold_fname.replace('.','-')+'.mat'
         CV = sio.loadmat(dir_pth['cvfolds']+cvfold_fname,squeeze_me=True)
-        X_train.append(CV[fiton][CV['train_ind'],:])
+        X_train.append(np.concatenate([CV[fi][CV['train_ind'],:] for fi in fiton]))
         XT.append(CV['zT'])
         XE.append(CV['zE'])
 
@@ -80,8 +80,9 @@ def main(min_component=10, max_component=50,
     write_header=True
     bic = np.empty((n_components_range.size,n_cvfolds))
     aic = np.empty((n_components_range.size,n_cvfolds))
-    for i,n_components in enumerate(n_components_range):
-        for cv in range(n_cvfolds):
+    for cv in range(n_cvfolds):
+        for i,n_components in enumerate(n_components_range):
+        
             #Declare GMM object
             gmm = mixture.GaussianMixture(n_components=n_components,
                                     covariance_type='full',reg_covar=1e-04,
@@ -109,7 +110,7 @@ def main(min_component=10, max_component=50,
             fname = 'gmm_{:d}_comp_{:d}_cv.pkl'.format(n_components,cv)
             with open(dir_pth['result']+fname, 'wb') as fid:
                 pickle.dump(gmm, fid)
-        print('Completed {:s} component model'.format(str(n_components)))
+            print('Completed {:s} component model for cv {}'.format(str(n_components),cv))
     return 
 
 

@@ -146,7 +146,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     model_TE = Model_TE_v2(T_output_dim=train_T_dat.shape[1],
                         E_output_dim=train_E_dat.shape[1],
                         T_intermediate_dim=50,
-                        E_intermediate_dim=20,
+                        E_intermediate_dim=40,
                         T_dropout=0.5,
                         E_gauss_noise_wt=Edat_var,
                         E_gnoise_sd=0.05,
@@ -158,7 +158,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
                         name='TE')
 
     #Model training functions 
-    #@tf.function
+    @tf.function
     def train_fn(model, XT, XE, train_T=False, train_E=False, subnetwork='all'):
         """Enclose this with tf.function to create a fast training step. Function can be used for inference as well. 
         Arguments:
