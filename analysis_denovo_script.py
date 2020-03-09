@@ -12,7 +12,7 @@ import scipy.io as sio
 from sklearn import mixture
 from timebudget import timebudget
 
-def set_paths(exp_name='denovo_clustering'):
+def set_paths(representation_pth='TE_aug_decoders',exp_name='denovo_clustering'):
     """Set data paths
     """
 
@@ -29,90 +29,110 @@ def set_paths(exp_name='denovo_clustering'):
         base_path = '/allen/programs/celltypes/workgroups/mousecelltypes/Rohan/'
         dir_pth['data'] = base_path + 'dat/raw/patchseq-v4/'
 
-    dir_pth['cvfolds'] = base_path + 'dat/result/TE_Patchseq_Bioarxiv/'
+    dir_pth['cvfolds'] = base_path + 'dat/result/'+representation_pth+'/'
     dir_pth['result'] = dir_pth['cvfolds'] + exp_name + '/'
 
     Path(dir_pth['result']).mkdir(parents=True, exist_ok=True)
     return dir_pth
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--min_component",  default=10,            type=int,  help='min GMM components')
-parser.add_argument("--max_component",  default=50,            type=int,  help='max GMM components')
-parser.add_argument("--exp_name", default='denovo_clustering', type=str,  help='Result folder')
 
-def main(min_component=10, max_component=50,
-         exp_name='denovo_clustering'):
+parser.add_argument("--representation_pth",default='TE_aug_decoders',    type=str,    help='Directory to load representations from')
+parser.add_argument("--exp_name",          default='gmm_fits_us',        type=str,    help='Result folder')
+
+parser.add_argument("--cvfold",             default=0,                    type=int,    help='CV set in [0,...,44]')
+parser.add_argument("--alpha_T",           default=1.0,                  type=float,  help='T reconstruction weight')
+parser.add_argument("--alpha_E",           default=1.0,                  type=float,  help='E reconstruction weight')
+parser.add_argument("--lambda_TE",         default=1.0,                  type=float,  help='Coupling weight')
+
+parser.add_argument("--min_component",     default=10,                   type=int,    help='min GMM components')
+parser.add_argument("--max_component",     default=None,                   type=int,    help='max GMM components')
+
+
+def main(representation_pth='TE_aug_decoders',
+         exp_name='denovo_clustering',
+         alpha_T=1.0,
+         alpha_E=1.0,
+         lambda_TE=1.0,
+         cvfold=0,
+         min_component=10, 
+         max_component=None):
     
-    #Representations
-    alpha_T=1.0
-    alpha_E=1.0
-    alpha_M=1.0
-    lambda_TE=0.0
-    fiton=['zT','zE']
-
     #GMM parameters
+    if max_component is None:
+        max_component = min_component+1
+
     n_components_range = np.arange(min_component,max_component)
-    n_cvfolds = 9
-    n_init = 100
+    n_init = 50
     max_iter = int(1e4)
     tol = 1e-6
+
+    #Representations
+    latent_dim = 3
+    ne = 1500
+    fiton=['zT']
+
+    fname = 'gmmfit'+'_aT_' + str(alpha_T) + \
+                    '_aE_' + str(alpha_E) + \
+                    '_cs_' + str(lambda_TE) + \
+                    '_cv_' + str(cvfold) + \
+                    '_ld_' + str(latent_dim) + \
+                    '_ne_' + str(ne) + \
+                    '_fiton_' + ''.join(fiton)
     
     dir_pth = set_paths(exp_name=exp_name)
-    
-    #Load all CV sets 
-    X_train = []
-    XT = []
-    XE = []
-    for cvfold in range(9):
-        cvfold_fname='v2_aT_'+str(alpha_T)+\
-                    '_aE_'+str(alpha_E)+\
-                    '_aM_'+str(alpha_M)+\
-                    '_cs_'+str(lambda_TE)+\
-                    '_ld_3_bs_200_se_500_ne_1500_cv_'+str(cvfold)+\
-                    '_ri_0500_ft-summary'
-        cvfold_fname=cvfold_fname.replace('.','-')+'.mat'
-        CV = sio.loadmat(dir_pth['cvfolds']+cvfold_fname,squeeze_me=True)
-        X_train.append(np.concatenate([CV[fi][CV['train_ind'],:] for fi in fiton]))
-        XT.append(CV['zT'])
-        XE.append(CV['zE'])
 
+    cvfold_fname = 'v3_Edat_pcipfx_aT_{:.1f}_aE_{:.1f}_cs_{:.1f}_ld_{:d}_bs_200_se_500_ne_{:d}_cv_{:d}_ri_0500_ft-summary'.format(alpha_T,
+                                                                                                                         alpha_E,
+                                                                                                                         lambda_TE,
+                                                                                                                         latent_dim,
+                                                                                                                         ne,
+                                                                                                                         cvfold)
+                                    
+    cvfold_fname = cvfold_fname.replace('.','-')+'.mat'                                                                                                                    
+    CV = sio.loadmat(dir_pth['cvfolds']+cvfold_fname,squeeze_me=True)
+    
+    Z_train = np.concatenate([CV[fi][CV['train_ind'],:] for fi in fiton])
+    Z_val   = np.concatenate([CV[fi][CV['val_ind'],:] for fi in fiton])
+    Z_test   = np.concatenate([CV[fi][CV['test_ind'],:] for fi in fiton])
+    
     #Initialize
     write_header=True
-    bic = np.empty((n_components_range.size,n_cvfolds))
-    aic = np.empty((n_components_range.size,n_cvfolds))
-    for cv in range(n_cvfolds):
-        for i,n_components in enumerate(n_components_range):
-        
-            #Declare GMM object
-            gmm = mixture.GaussianMixture(n_components=n_components,
-                                    covariance_type='full',reg_covar=1e-04,
-                                    tol=tol,max_iter=max_iter,n_init=n_init,
-                                    init_params='kmeans',
-                                    random_state=None,
-                                    warm_start=False,
-                                    verbose=0)
+    bic_train = np.empty(n_components_range.size)
+    bic_val = np.empty(n_components_range.size)
+    bic_test = np.empty(n_components_range.size)
+    for i,n_components in enumerate(n_components_range):
+    
+        #Declare GMM object
+        gmm = mixture.GaussianMixture(n_components=n_components,
+                                covariance_type='full',reg_covar=1e-04,
+                                tol=tol,max_iter=max_iter,n_init=n_init,
+                                init_params='kmeans',
+                                random_state=None,
+                                warm_start=False,
+                                verbose=1)
 
-            #Fit gmm + calculate aic and bic
-            gmm.fit(X_train[cv])
-            bic[i,cv] = gmm.bic(X_train[cv])
-            aic[i,cv] = gmm.aic(X_train[cv])
+        #Fit gmm + calculate bic
+        gmm.fit(Z_train)
+        bic_train[i] = gmm.bic(Z_train)
+        bic_val[i] = gmm.bic(Z_val)
+        bic_test[i] = gmm.bic(Z_test)
 
-            #Write logs
-            log_fname = 'logs_{:02d}_{:02d}.csv'.format(min_component,max_component)
-            with open(dir_pth['result']+log_fname, "a") as logfile:
-                writer = csv.writer(logfile, delimiter=',')
-                if write_header:
-                    writer.writerow(['n_components','cv','bic','aic','converged'])
-                    write_header=False
-                writer.writerow([n_components,cv,bic[i,cv],aic[i,cv],int(gmm.converged_)])
+        #Write logs
+        log_fname = fname+'minn_{:02d}_maxn_{:02d}.csv'.format(min_component,max_component)
+        with open(dir_pth['result']+log_fname, "a") as logfile:
+            writer = csv.writer(logfile, delimiter=',')
+            if write_header:
+                writer.writerow(['n_components','cv','bic_train','bic_val','bic_test','converged'])
+                write_header=False
+            writer.writerow([n_components,cvfold,bic_train[i],bic_val[i],bic_test[i],int(gmm.converged_)])
 
-            #Save fitted gmm object
-            fname = 'gmm_{:d}_comp_{:d}_cv.pkl'.format(n_components,cv)
-            with open(dir_pth['result']+fname, 'wb') as fid:
-                pickle.dump(gmm, fid)
-            print('Completed {:s} component model for cv {}'.format(str(n_components),cv))
+        #Save fitted gmm object
+        fit_fname = fname+'_n_{:d}.pkl'.format(n_components)
+        with open(dir_pth['result']+fit_fname, 'wb') as fid:
+            pickle.dump(gmm, fid)
+        print('Completed {:s} component model for cv {}'.format(str(n_components),cvfold))
     return 
-
 
 if __name__ == "__main__":
     args = parser.parse_args()
