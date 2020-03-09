@@ -79,7 +79,7 @@ def main(representation_pth='TE_aug_decoders',
                     '_ld_' + str(latent_dim) + \
                     '_ne_' + str(ne) + \
                     '_fiton_' + ''.join(fiton)
-    
+    fname = fname.replace('-','.')
     dir_pth = set_paths(exp_name=exp_name)
 
     cvfold_fname = 'v3_Edat_pcipfx_aT_{:.1f}_aE_{:.1f}_cs_{:.1f}_ld_{:d}_bs_200_se_500_ne_{:d}_cv_{:d}_ri_0500_ft-summary'.format(alpha_T,
