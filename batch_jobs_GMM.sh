@@ -22,8 +22,7 @@ do
                         ' --alpha_T 1.0'\
                         ' --alpha_E 1.0'\
                         ' --lambda_TE 1.0'\
-                        ' --min_component '$minn
-        >>subjob.bash
+                        ' --min_component '$minn >>subjob.bash
         echo '...'
         sleep 1
         wait
