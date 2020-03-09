@@ -13,7 +13,7 @@ do
         echo '#PBS -o /allen/programs/celltypes/workgroups/mousecelltypes/Rohan/logs/'${jobid//./-}'.out'>>subjob.bash
         echo '#PBS -j oe'>>subjob.bash
 
-        echo 'cd /allen/programs/celltypes/workgroups/mousecelltypes/Rohan/code/Patchseq-AE-Bioarxiv/'>>subjob.bash
+        echo 'cd /allen/programs/celltypes/workgroups/mousecelltypes/Rohan/code/Patchseq-bioarxiv/'>>subjob.bash
         echo 'source activate tf21-cpu'>>subjob.bash
         echo 'python -m analysis_denovo_script' \
                         ' --representation_pth TE_aug_decoders' \
