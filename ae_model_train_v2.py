@@ -123,13 +123,15 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     #Data operations and definitions:
     D = sio.loadmat(dir_pth['data']+'PS_v5_beta_0-4_pc_scaled_ipxf_eqTE.mat',squeeze_me=True)
     D['E_pcipxf'] = np.concatenate([D['E_pc_scaled'],D['E_feature']],axis = 1)
-    cvset,testset = TE_get_splits_50(matdict=D)
-
+    cvset,test_ind = TE_get_splits_50(matdict=D)
     train_ind = cvset[cvfold]['train']
+    val_ind = cvset[cvfold]['val']
+
+    Partitions = {'train_ind':train_ind,'val_ind':val_ind,'test_ind':test_ind}
+
     train_T_dat = D['T_dat'][train_ind,:]
     train_E_dat = D[Edat][train_ind,:]
 
-    val_ind = cvset[cvfold]['val']
     val_T_dat = D['T_dat'][val_ind,:]
     val_E_dat = D[Edat][val_ind,:]
     
@@ -204,7 +206,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
         log_values = [epoch, mse_loss_T, mse_loss_E, mse_loss_TE]
         return log_name, log_values
     
-    def save_results(this_model,Data,fname):
+    def save_results(this_model,Data,fname,Inds=Partitions,Edat=Edat):
         all_T_dat = tf.constant(Data['T_dat'])
         all_E_dat = tf.constant(Data[Edat])
         zT, zE, XrT, XrE = this_model((all_T_dat, all_E_dat), training=False)
@@ -213,16 +215,12 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
 
         savemat = {'zT': zT.numpy(),
                 'zE': zE.numpy(),
-                'XE': XE.numpy(),
                 'XrE': XrE.numpy(),
                 'XrE_from_XT': XrE_from_XT.numpy(),
-                'XT': XT.numpy(),
                 'XrT': XrT.numpy(),
-                'XrT_from_XE': XrT_from_XE.numpy(),
-                'train_ind': train_ind,
-                'val_ind': val_ind,
-                'test_ind': testset}
-
+                'XrT_from_XE': XrT_from_XE.numpy()}
+        
+        savemat.update(Inds)
         sio.savemat(fname, savemat, do_compression=True)
         return
 
