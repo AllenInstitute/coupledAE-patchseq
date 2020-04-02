@@ -103,7 +103,7 @@ def main(cvfold=0):
     fileid = 'v3_Edat_pcipfx_aT_'+str(alpha_T)+\
                     '_aE_'+str(alpha_E)+\
                     '_cs_'+str(lambda_TE)
-    fileid.replace('.','-')
+    fileid = fileid.replace('.','-')
     save_pth = '/home/rohan/Remote-AI/dat/result/TE_aug_decoders/ari_ref_partitions_cv_{}'.format(cvfold)+fileid+'.csv'
 
     for i in tqdm(range(len(partitions))):
