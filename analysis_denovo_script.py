@@ -21,14 +21,12 @@ def set_paths(representation_pth='TE_aug_decoders',exp_name='denovo_clustering')
     curr_path = str(Path().absolute())
     if '/Users/fruity' in curr_path:
         base_path = '/Users/fruity/Dropbox/AllenInstitute/CellTypes/'
-        dir_pth['data'] = base_path + 'dat/raw/patchseq-v4/'
     elif '/home/rohan' in curr_path:
         base_path = '/home/rohan/Dropbox/AllenInstitute/CellTypes/'
-        dir_pth['data'] = base_path + 'dat/raw/patchseq-v4/'
     elif '/allen' in curr_path:
         base_path = '/allen/programs/celltypes/workgroups/mousecelltypes/Rohan/'
-        dir_pth['data'] = base_path + 'dat/raw/patchseq-v4/'
-
+        
+    dir_pth['data'] = base_path + 'dat/raw/patchseq-v4/'
     dir_pth['cvfolds'] = base_path + 'dat/result/'+representation_pth+'/'
     dir_pth['result'] = dir_pth['cvfolds'] + exp_name + '/'
 
@@ -38,25 +36,27 @@ def set_paths(representation_pth='TE_aug_decoders',exp_name='denovo_clustering')
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--representation_pth",default='TE_aug_decoders',    type=str,    help='Directory to load representations from')
-parser.add_argument("--exp_name",          default='gmm_fits_us',        type=str,    help='Result folder')
+parser.add_argument("--exp_name",          default='gmm_fits_restricted',type=str,    help='Result folder')
 
-parser.add_argument("--cvfold",             default=0,                    type=int,    help='CV set in [0,...,44]')
+parser.add_argument("--cvfold",            default=0,                    type=int,    help='CV set in [0,...,44]')
 parser.add_argument("--alpha_T",           default=1.0,                  type=float,  help='T reconstruction weight')
 parser.add_argument("--alpha_E",           default=1.0,                  type=float,  help='E reconstruction weight')
 parser.add_argument("--lambda_TE",         default=1.0,                  type=float,  help='Coupling weight')
 
 parser.add_argument("--min_component",     default=10,                   type=int,    help='min GMM components')
-parser.add_argument("--max_component",     default=None,                   type=int,    help='max GMM components')
+parser.add_argument("--max_component",     default=None,                 type=int,    help='max GMM components')
+parser.add_argument("--perc",              default=97,                   type=float,  help='max GMM components')
 
 
 def main(representation_pth='TE_aug_decoders',
-         exp_name='denovo_clustering',
+         exp_name='gmm_fits_restricted',
          alpha_T=1.0,
          alpha_E=1.0,
          lambda_TE=1.0,
          cvfold=0,
          min_component=10, 
-         max_component=None):
+         max_component=None,
+         perc=97):
     
     #GMM parameters
     if max_component is None:
@@ -72,7 +72,9 @@ def main(representation_pth='TE_aug_decoders',
     ne = 1500
     fiton=['zT']
 
-    fname = 'gmmfit'+'_aT_' + str(alpha_T) + \
+    fname = 'gmmfit_restricted_'+ \
+                    'perc_'+ str(perc) + \
+                    '_aT_' + str(alpha_T) + \
                     '_aE_' + str(alpha_E) + \
                     '_cs_' + str(lambda_TE) + \
                     '_cv_' + str(cvfold) + \
@@ -91,7 +93,17 @@ def main(representation_pth='TE_aug_decoders',
                                     
     cvfold_fname = cvfold_fname.replace('.','-')+'.mat'                                                                                                                    
     CV = sio.loadmat(dir_pth['cvfolds']+cvfold_fname,squeeze_me=True)
+    O = sio.loadmat(dir_pth['data']+'PS_v5_beta_0-4_pc_scaled_ipxf_eqTE.mat',squeeze_me=True)
     
+    #Fit GMMs on data that is reconstructed well
+    RT = np.mean((CV['XrT'] - O['T_dat'])**2,axis=1)
+    RE = np.nanmean((CV['XrE'] - np.concatenate([O['E_pc_scaled'],O['E_feature']],axis = 1))**2,axis=1)
+    CTE= np.mean((CV['zT'] - CV['zE'])**2,axis=1)
+    keep = np.logical_and(RT<np.percentile(RT,perc),RE<np.percentile(RE,perc))
+    keep = np.logical_and(keep,CTE<np.percentile(CTE,perc))
+    CV['train_ind'] = keep
+    
+
     Z_train = np.concatenate([CV[fi][CV['train_ind'],:] for fi in fiton])
     Z_val   = np.concatenate([CV[fi][CV['val_ind'],:] for fi in fiton])
     Z_test   = np.concatenate([CV[fi][CV['test_ind'],:] for fi in fiton])
