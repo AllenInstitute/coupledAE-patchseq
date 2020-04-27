@@ -140,7 +140,7 @@ class Decoder_E(keras.layers.Layer):
         self.fc1  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc1')
         self.fc2  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc2')
         self.fc3  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc3')
-        self.drp = keras.layers.Dropout(rate=0.1) #Regularization 
+        self.drp = keras.layers.Dropout(rate=0.1) #extra regularization 
         self.Xout = keras.layers.Dense(output_dim, activation='linear',name=name+'Xout')
         return
 
@@ -284,8 +284,8 @@ class Model_T(tf.keras.Model):
         return zT,XrT
 
 
-class Model_TE_v2(tf.keras.Model):
-    """Combine two AE agents"""
+class Model_TE_aug_decoders(tf.keras.Model):
+    """Combine two AE agents. Loss function considers the cross modal reconstruction from the representations."""
 
     def __init__(self,
                T_output_dim,
@@ -315,10 +315,10 @@ class Model_TE_v2(tf.keras.Model):
             latent_dim: dim for representations
             name: TE
         """
-        super(Model_TE_v2, self).__init__(name=name, **kwargs)
-        self.alpha_T = alpha_T
-        self.alpha_E = alpha_E
-        self.lambda_TE = lambda_TE
+        super(Model_TE_aug_decoders, self).__init__(name=name, **kwargs)
+        self.alpha_T = tf.constant(alpha_T,dtype=tf.float32)
+        self.alpha_E = tf.constant(alpha_E,dtype=tf.float32)
+        self.lambda_TE = tf.constant(lambda_TE,dtype=tf.float32)
 
         E_gnoise_sd_weighted = E_gauss_noise_wt*E_gnoise_sd
         self.encoder_T = Encoder_T(dropout_rate=T_dropout,latent_dim=latent_dim, intermediate_dim=T_intermediate_dim, name='Encoder_T')
@@ -327,50 +327,47 @@ class Model_TE_v2(tf.keras.Model):
         self.decoder_T = Decoder_T(output_dim=T_output_dim, intermediate_dim=T_intermediate_dim, name='Decoder_T')
         self.decoder_E = Decoder_E(output_dim=E_output_dim, intermediate_dim=E_intermediate_dim, name='Decoder_E')
 
-    def call(self, inputs, train_T=True, train_E=True):
+    def call(self, inputs, train_T=True, train_E=True, augment_decoders=True):
         """
         Encoder for transcriptomic data
         Args:
             training: Toggles dropout/noise for T and E arms. Used to report training/validation losses without the noise.
             train_both: Toggles dropout for only the T arm. Used to fine tune the E representation.
         """
-        #T arm
+        #T arm forward pass
         XT = inputs[0]
         zT = self.encoder_T(XT,training=train_T)
         XrT = self.decoder_T(zT,training=train_T)
         
-        #E arm
+        #E arm forward pass
         XE = tf.where(tf.math.is_nan(inputs[1]),x=0.0,y=inputs[1]) #Mask nans
         maskE = tf.where(tf.math.is_nan(inputs[1]),x=0.0,y=1.0)    #Get mask to ignore error contribution
         zE = self.encoder_E(XE,training=train_E)
         XrE = self.decoder_E(zE,training=train_E)
 
-        #Cross modal reconstructions - treat zE and zT as constants for this purpose
-        XrT_aug = self.decoder_T(tf.stop_gradient(zE),training=train_T)
-        XrE_aug = self.decoder_E(tf.stop_gradient(zT),training=train_E)
-        
+        #Loss calculations
         mse_loss_T = tf.reduce_mean(tf.math.squared_difference(XT, XrT))
         mse_loss_E = tf.reduce_mean(tf.multiply(tf.math.squared_difference(XE, XrE),maskE))
-
-        mse_loss_T_aug = tf.reduce_mean(tf.math.squared_difference(XT, XrT_aug))
-        mse_loss_E_aug = tf.reduce_mean(tf.multiply(tf.math.squared_difference(XE, XrE_aug),maskE))
-
-        mse_loss_TE = tf.reduce_mean(tf.math.squared_difference(zT, zE)) #For logging only
         cpl_loss_TE = min_var_loss(zT, zE)
 
         #Append to keras model losses for gradient calculations
-        self.add_loss(tf.constant(self.alpha_T,dtype=tf.float32)*mse_loss_T)
-        self.add_loss(tf.constant(self.alpha_E,dtype=tf.float32)*mse_loss_E)
+        self.add_loss(self.alpha_T*mse_loss_T)
+        self.add_loss(self.alpha_E*mse_loss_E)
+        self.add_loss(self.lambda_TE*cpl_loss_TE)
 
-        self.add_loss(tf.constant(self.alpha_T,dtype=tf.float32)*mse_loss_T_aug)
-        self.add_loss(tf.constant(self.alpha_E,dtype=tf.float32)*mse_loss_E_aug)
-
-        self.add_loss(tf.constant(self.lambda_TE,dtype=tf.float32)*cpl_loss_TE)
-
+        #Cross modal reconstructions - treat zE and zT as constants for this purpose
+        if augment_decoders:
+            XrT_aug = self.decoder_T(tf.stop_gradient(zE),training=train_T)
+            XrE_aug = self.decoder_E(tf.stop_gradient(zT),training=train_E)
+            mse_loss_T_aug = tf.reduce_mean(tf.math.squared_difference(XT, XrT_aug))
+            mse_loss_E_aug = tf.reduce_mean(tf.multiply(tf.math.squared_difference(XE, XrE_aug),maskE))
+            self.add_loss(self.alpha_T*mse_loss_T_aug)
+            self.add_loss(self.alpha_E*mse_loss_E_aug)
+        
         #For logging only
         self.mse_loss_T = mse_loss_T
         self.mse_loss_E = mse_loss_E
-        self.mse_loss_TE = mse_loss_TE
+        self.mse_loss_TE = tf.reduce_mean(tf.math.squared_difference(zT, zE))
         return zT,zE,XrT,XrE
         
 
