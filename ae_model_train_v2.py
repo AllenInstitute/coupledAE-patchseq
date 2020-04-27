@@ -45,7 +45,7 @@ parser.add_argument("--Edat",              default='pcipfx',                type
 parser.add_argument("--alpha_T",           default=1.0,                     type=float,   help="T Reconstruction loss weight")
 parser.add_argument("--alpha_E",           default=1.0,                     type=float,   help="E Reconstruction loss weight")
 parser.add_argument("--lambda_TE",         default=1.0,                     type=float,   help="Coupling loss weight")
-parser.add_argument("--augment_decoders",  default=True,                    type=bool,    help="Train with cross modal reconstruction")
+parser.add_argument("--augment_decoders",  default=1,                       type=int,     help="0 or 1 - Train with cross modal reconstruction")
 parser.add_argument("--latent_dim",        default=3,                       type=int,     help="Number of latent dims")
 
 parser.add_argument("--n_epochs",          default=1500,                    type=int,     help="Number of epochs to train")
@@ -113,15 +113,16 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     
     dir_pth = set_paths(exp_name=exp_name)
 
+    #Augmenting only hurts of networks are not coupled.
     if lambda_TE==0.0:
-        augment_decoders=False
+        augment_decoders=0
 
     fileid = model_id + \
         '_Edat_' + str(Edat) + \
         '_aT_' + str(alpha_T) + \
         '_aE_' + str(alpha_E) + \
         '_cs_' + str(lambda_TE) + \
-        '_ad_' + str(int(augment_decoders)) + \
+        '_ad_' + str(augment_decoders) + \
         '_ld_' + str(latent_dim) + \
         '_bs_' + str(batchsize) + \
         '_se_' + str(n_steps_per_epoch) +\
@@ -129,6 +130,9 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
         '_cv_' + str(cvfold) + \
         '_ri_' + str(run_iter)
     fileid = fileid.replace('.', '-')
+
+    #Convert to boolean
+    augment_decoders=augment_decoders>0
 
     if Edat == 'pc':
         Edat = 'E_pc_scaled'
@@ -159,10 +163,9 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     batchsize = tf.constant(batchsize)
 
     #Model definition
-    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+    optimizer_main = tf.keras.optimizers.Adam(learning_rate=1e-3)
     train_generator = tf.data.Dataset.from_generator(Datagen,output_types=(tf.float32, tf.float32),
                                                      args=(maxsteps,batchsize,train_T_dat,train_E_dat))
-    
     
     model_TE = Model_TE_aug_decoders(T_output_dim=train_T_dat.shape[1],
                         E_output_dim=train_E_dat.shape[1],
@@ -180,7 +183,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
 
     #Model training functions 
     @tf.function
-    def train_fn(model, XT, XE, train_T=False, train_E=False, augment_decoders=True, subnetwork='all'):
+    def train_fn(model, optimizer ,XT, XE, train_T=False, train_E=False, augment_decoders=True, subnetwork='all'):
         """Enclose this with tf.function to create a fast training step. Function can be used for inference as well. 
         Arguments:
             XT: T data for training or validation
@@ -190,7 +193,6 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
             subnetwork {str} -- 'all' or 'E'. 'all' trains the full network, 'E' trains only the E arm.
         """
         
-
         with tf.GradientTape() as tape:
             zT, zE, XrT, XrE = model((XT, XE), 
                                     train_T=train_T, 
@@ -249,8 +251,9 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     #Main training loop ----------------------------------------------------------------------
     epoch=0
     for step, (XT,XE) in enumerate(train_generator): 
-        train_fn(model=model_TE, XT=XT, XE=XE, train_T=True,train_E=True,augment_decoders=augment_decoders,subnetwork='all')
-
+        train_fn(model=model_TE, optimizer=optimizer_main,XT=XT, XE=XE, 
+                 train_T=True,train_E=True,augment_decoders=augment_decoders,subnetwork='all')
+        
         if (step+1) % n_steps_per_epoch == 0:
             #Update epoch count
             epoch = epoch+1
@@ -262,7 +265,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
             #Collect validation metrics
             model_TE((val_T_dat, val_E_dat), train_T=False, train_E=False)
             val_log_name, val_log_values = report_losses(model=model_TE, epoch=epoch, datatype='val_', verbose=True)
-
+            
             with open(dir_pth['logs']+fileid+'.csv', "a") as logfile:
                 writer = csv.writer(logfile, delimiter=',')
                 #Write headers to the log file
@@ -282,13 +285,12 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     #Save reconstructions and results for the full dataset:
     save_results(this_model=model_TE,Data=D,fname=dir_pth['result']+fileid+'-summary.mat')
 
-    print('\n\n starting fine tuning loop')
+    print('\n\n--- fine tuning loop begins ---')
     #Fine tuning loop ----------------------------------------------------------------------
-    #Each batch is now the whole dataset
-    
+    #Each batch is now the whole training set
     for epoch in range(n_finetuning_steps):
-        #Switch of T augmentation, and update only E arm:
-        train_fn(model=model_TE, XT=train_T_dat, XE=train_E_dat, train_T=True,train_E=True,augment_decoders=True,subnetwork='all')
+        train_fn(model=model_TE, optimizer=optimizer_main,XT=train_T_dat, XE=train_E_dat, 
+                 train_T=True,train_E=True,augment_decoders=augment_decoders,subnetwork='all')
         
         #Collect training metrics
         model_TE((train_T_dat, train_E_dat), train_T=False, train_E=False)
@@ -306,10 +308,10 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
             writer.writerow(train_log_values+val_log_values)
     
     #Save model weights on exit
-    model_TE.save_weights(dir_pth['result']+fileid+str(n_finetuning_steps)+'_ft-weights.h5')
+    model_TE.save_weights(dir_pth['result']+fileid+'_'+str(n_finetuning_steps)+'_ft-weights.h5')
 
     #Save reconstructions and results for the full dataset:
-    save_results(this_model=model_TE,Data=D,fname=dir_pth['result']+fileid+str(n_finetuning_steps)+'_ft-summary.mat')    
+    save_results(this_model=model_TE,Data=D,fname=dir_pth['result']+fileid+'_'+str(n_finetuning_steps)+'_ft-summary.mat')    
     return
 
 if __name__ == "__main__":
