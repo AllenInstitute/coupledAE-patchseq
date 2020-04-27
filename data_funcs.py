@@ -303,10 +303,9 @@ def TE_get_splits(matdict):
     return cvset,testset
 
 
-
-def TE_get_splits_50(matdict):
-    """Creates 1 test set, and from the remaining cells creates 45 other sets for 45-fold cross validation
-    Data in the test and validation sets is stratified based on T cluster labels.
+def TE_get_splits_45(matdict):
+    """Creates a test set with ~10% of the samples. Remaining cells are used for 45-fold cross validation
+    Test and validation sets are stratified based on T cluster labels.
     
     Returns:
         cvset -- list with 45 cross-validation folds. Train indices: cvset[0]['train'] and Validation indices: cvset[0]['val']
@@ -318,12 +317,13 @@ def TE_get_splits_50(matdict):
     skf = StratifiedKFold(n_splits=50, random_state=0, shuffle=True)
     ind_dict = [{'train':train_ind, 'val':val_ind} for train_ind, val_ind in skf.split(X=np.zeros(shape=matdict['cluster'].shape), y=matdict['cluster'])]
 
-    #Define the test set
+    #Pool a fraction of the stratified folds to define the test set
     testset = []
     for i in range(45,50,1):
         testset.append(ind_dict[i]['val'])
     testset = np.concatenate(testset)
     
+    #Ensure test set cells do not appear in any of the training sets.
     cvset = []
     for i in range(1,len(ind_dict),1):
         ind_dict[i]['train'] = np.setdiff1d(ind_dict[i]['train'],testset)
@@ -331,13 +331,3 @@ def TE_get_splits_50(matdict):
         cvset.append(ind_dict[i])
 
     return cvset,testset
-
-
-def TE_high_conf(matdict):
-    """Restricts the matched TE dataset to only cells that are mapped (T) with high confidence.
-    
-    Returns:
-        matdict -- dictionary with matched TE data, containing only cells mapped with high confidence.
-    """
-    pass
-    return matdict
