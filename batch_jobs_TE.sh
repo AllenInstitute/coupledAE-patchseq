@@ -27,7 +27,7 @@ do
                     ' --n_epochs 1500'\
                     ' --n_steps_per_epoch 500'\
                     ' --ckpt_save_freq 500'\
-                    ' --n_finetuning_steps 100'\
+                    ' --n_finetuning_steps 500'\
                     ' --run_iter 0'\
                     ' --model_id NM'\
                     ' --exp_name TE_NM'>>subjob.bash
