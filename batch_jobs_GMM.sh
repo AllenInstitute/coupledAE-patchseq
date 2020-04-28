@@ -24,7 +24,7 @@ do
                             ' --alpha_T 1.0'\
                             ' --alpha_E 1.0'\
                             ' --lambda_TE 1.0'\
-                            '--perc '$perc \
+                            ' --perc '$perc \
                             ' --min_component '$minn >>subjob.bash
             echo '...'
             sleep 0.2
