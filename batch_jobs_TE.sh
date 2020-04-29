@@ -1,8 +1,8 @@
 for cv in {0..44}
 do
-    for csTE in 0 0.5 1.0 2.0 5.0
+    for csTE in 0.1 0.5 1.0 2.0
     do
-        for aug in 0
+        for aug in 1
         do
             jobid="TE_NM"$cv"cv"$csTE"csTE"$aug"aug"
             echo '#!/bin/bash'>subjob.bash
