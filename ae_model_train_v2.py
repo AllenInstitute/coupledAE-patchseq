@@ -163,7 +163,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     batchsize = tf.constant(batchsize)
     
     #Model definition
-    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+    optimizer_main = tf.keras.optimizers.Adam(learning_rate=1e-3)
     train_generator = tf.data.Dataset.from_generator(Datagen,output_types=(tf.float32, tf.float32),
                                                      args=(maxsteps,batchsize,train_T_dat,train_E_dat))
     
@@ -183,7 +183,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
 
     #Model training functions 
     @tf.function
-    def train_fn(model, XT, XE, train_T=False, train_E=False, augment_decoders=True, subnetwork='all'):
+    def train_fn(model, optimizer, XT, XE, train_T=False, train_E=False, augment_decoders=True, subnetwork='all'):
         """Enclose this with tf.function to create a fast training step. Function can be used for inference as well. 
         Arguments:
             XT: T data for training or validation
@@ -251,7 +251,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     #Main training loop ----------------------------------------------------------------------
     epoch=0
     for step, (XT,XE) in enumerate(train_generator): 
-        train_fn(model=model_TE, XT=XT, XE=XE, 
+        train_fn(model=model_TE, optimizer=optimizer_main, XT=XT, XE=XE, 
                  train_T=True,train_E=True,augment_decoders=augment_decoders,subnetwork='all')
         
         if (step+1) % n_steps_per_epoch == 0:
@@ -289,7 +289,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     #Fine tuning loop ----------------------------------------------------------------------
     #Each batch is now the whole training set
     for epoch in range(n_finetuning_steps):
-        train_fn(model=model_TE ,XT=train_T_dat, XE=train_E_dat, 
+        train_fn(model=model_TE, optimizer=optimizer_main, XT=train_T_dat, XE=train_E_dat, 
                  train_T=True,train_E=True,augment_decoders=augment_decoders,subnetwork='all')
         
         #Collect training metrics
