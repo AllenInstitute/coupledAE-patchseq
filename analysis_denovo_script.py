@@ -12,7 +12,7 @@ import scipy.io as sio
 from sklearn import mixture
 from timebudget import timebudget
 
-def set_paths(representation_pth='TE_aug_decoders',exp_name='denovo_clustering'):
+def set_paths(representation_pth='TE_NM',exp_name='denovo_clustering'):
     """Set data paths
     """
 
@@ -35,25 +35,29 @@ def set_paths(representation_pth='TE_aug_decoders',exp_name='denovo_clustering')
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--representation_pth",default='TE_aug_decoders',    type=str,    help='Directory to load representations from')
-parser.add_argument("--exp_name",          default='gmm_fits_restricted',type=str,    help='Result folder')
+parser.add_argument("--representation_pth",default='TE_NM',              type=str,    help='Directory to load representations from')
+parser.add_argument("--exp_name",          default='gmm_model_select',   type=str,    help='Result folder')
 
 parser.add_argument("--cvfold",            default=0,                    type=int,    help='CV set in [0,...,44]')
 parser.add_argument("--alpha_T",           default=1.0,                  type=float,  help='T reconstruction weight')
 parser.add_argument("--alpha_E",           default=1.0,                  type=float,  help='E reconstruction weight')
 parser.add_argument("--lambda_TE",         default=1.0,                  type=float,  help='Coupling weight')
+parser.add_argument("--augmented_decoders",default=1,                    type=int,    help='Using decoders with train time augmentations')
+parser.add_argument("--run_iter",          default=10,                   type=int,    help='RI set in [10,...,20] for TE_NM experiments')
 
 parser.add_argument("--min_component",     default=10,                   type=int,    help='min GMM components')
 parser.add_argument("--max_component",     default=None,                 type=int,    help='max GMM components')
-parser.add_argument("--perc",              default=97,                   type=float,  help='max GMM components')
+parser.add_argument("--perc",              default=100,                  type=float,  help='percent of best reconstructed data to keep, ')
 
 
-def main(representation_pth='TE_aug_decoders',
-         exp_name='gmm_fits_restricted',
+def main(representation_pth='TE_NM',
+         exp_name='gmm_model_select',
          alpha_T=1.0,
          alpha_E=1.0,
          lambda_TE=1.0,
+         augmented_decoders=1,
          cvfold=0,
+         run_iter=0,
          min_component=10, 
          max_component=None,
          perc=97):
@@ -77,19 +81,23 @@ def main(representation_pth='TE_aug_decoders',
                     '_aT_' + str(alpha_T) + \
                     '_aE_' + str(alpha_E) + \
                     '_cs_' + str(lambda_TE) + \
+                    '_ad_' + str(augmented_decoders) + \
                     '_cv_' + str(cvfold) + \
+                    '_ri_' + str(run_iter) + \
                     '_ld_' + str(latent_dim) + \
                     '_ne_' + str(ne) + \
                     '_fiton_' + ''.join(fiton)
     fname = fname.replace('.','-')
     dir_pth = set_paths(exp_name=exp_name)
-
-    cvfold_fname = 'v3_Edat_pcipfx_aT_{:.1f}_aE_{:.1f}_cs_{:.1f}_ld_{:d}_bs_200_se_500_ne_{:d}_cv_{:d}_ri_0500_ft-summary'.format(alpha_T,
+    
+    cvfold_fname = 'NM_Edat_pcipfx_aT_{:.1f}_aE_{:.1f}_cs_{:.1f}_ad_{:d}_ld_{:d}_bs_200_se_500_ne_{:d}_cv_{:d}_ri_{:d}_500_ft-summary'.format(alpha_T,
                                                                                                                          alpha_E,
                                                                                                                          lambda_TE,
+                                                                                                                         augmented_decoders,
                                                                                                                          latent_dim,
                                                                                                                          ne,
-                                                                                                                         cvfold)
+                                                                                                                         cvfold,
+                                                                                                                         run_iter)
                                     
     cvfold_fname = cvfold_fname.replace('.','-')+'.mat'                                                                                                                    
     CV = sio.loadmat(dir_pth['cvfolds']+cvfold_fname,squeeze_me=True)
@@ -123,9 +131,10 @@ def main(representation_pth='TE_aug_decoders',
                                 random_state=None,
                                 warm_start=False,
                                 verbose=1)
-
+        
         #Fit gmm + calculate bic
         gmm.fit(Z_train)
+        pdb.set_trace()
         bic_train[i] = gmm.bic(Z_train)
         bic_val[i] = gmm.bic(Z_val)
         bic_test[i] = gmm.bic(Z_test)
