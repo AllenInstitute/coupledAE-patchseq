@@ -1,4 +1,5 @@
-for cv in {0..44}
+cv=0
+for ri in {10..20}
 do
     for minn in {10..45..1}
     do
@@ -17,13 +18,13 @@ do
         echo 'source activate tf21-cpu'>>subjob.bash
         echo 'python -m analysis_denovo_script' \
                         ' --representation_pth TE_NM' \
-                        ' --exp_name gmm_model_select' \
+                        ' --exp_name gmm_model_select_cv_0' \
                         ' --cvfold '$cv \
                         ' --alpha_T 1.0'\
                         ' --alpha_E 1.0'\
                         ' --lambda_TE 1.0'\
                         ' --augmented_decoders 1'\
-                        ' --run_iter 0'\
+                        ' --run_iter '$ri \
                         ' --perc 100'\
                         ' --min_component '$minn >>subjob.bash
         echo '...'
