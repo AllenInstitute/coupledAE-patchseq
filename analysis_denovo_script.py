@@ -134,7 +134,6 @@ def main(representation_pth='TE_NM',
         
         #Fit gmm + calculate bic
         gmm.fit(Z_train)
-        pdb.set_trace()
         bic_train[i] = gmm.bic(Z_train)
         bic_val[i] = gmm.bic(Z_val)
         bic_test[i] = gmm.bic(Z_test)
