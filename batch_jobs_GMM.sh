@@ -1,5 +1,5 @@
 cv=0
-for ri in {10..20}
+for ri in {0..20}
 do
     for minn in {10..45..1}
     do
@@ -17,7 +17,7 @@ do
         echo 'cd /allen/programs/celltypes/workgroups/mousecelltypes/Rohan/code/Patchseq-bioarxiv/'>>subjob.bash
         echo 'source activate tf21-cpu'>>subjob.bash
         echo 'python -m analysis_denovo_script' \
-                        ' --representation_pth TE_NM' \
+                        ' --representation_pth TE_NM_cc' \
                         ' --exp_name gmm_model_select_cv_0' \
                         ' --cvfold '$cv \
                         ' --alpha_T 1.0'\

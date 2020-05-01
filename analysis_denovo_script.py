@@ -90,14 +90,12 @@ def main(representation_pth='TE_NM',
     fname = fname.replace('.','-')
     dir_pth = set_paths(exp_name=exp_name)
     
-    cvfold_fname = 'NM_Edat_pcipfx_aT_{:.1f}_aE_{:.1f}_cs_{:.1f}_ad_{:d}_ld_{:d}_bs_200_se_500_ne_{:d}_cv_{:d}_ri_{:d}_500_ft-summary'.format(alpha_T,
-                                                                                                                         alpha_E,
-                                                                                                                         lambda_TE,
-                                                                                                                         augmented_decoders,
-                                                                                                                         latent_dim,
-                                                                                                                         ne,
-                                                                                                                         cvfold,
-                                                                                                                         run_iter)
+    cvfold_fname = 'NM_Edat_pcipfx_aT_{:.1f}_aE_{:.1f}_cs_{:.1f}_'\
+                    'ad_{:d}_ld_{:d}_bs_200_se_500_ne_{:d}_cv_{:d}_'\
+                    'ri_{:d}_500_ft-summary'.format(alpha_T,alpha_E,lambda_TE,
+                                                    augmented_decoders,latent_dim,
+                                                    ne,cvfold,
+                                                    run_iter)
                                     
     cvfold_fname = cvfold_fname.replace('.','-')+'.mat'                                                                                                                    
     CV = sio.loadmat(dir_pth['cvfolds']+cvfold_fname,squeeze_me=True)
