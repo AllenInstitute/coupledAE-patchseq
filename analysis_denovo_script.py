@@ -88,7 +88,7 @@ def main(representation_pth='TE_NM',
                     '_ne_' + str(ne) + \
                     '_fiton_' + ''.join(fiton)
     fname = fname.replace('.','-')
-    dir_pth = set_paths(exp_name=exp_name)
+    dir_pth = set_paths(representation_pth=representation_pth,exp_name=exp_name)
     
     cvfold_fname = 'NM_Edat_pcipfx_aT_{:.1f}_aE_{:.1f}_cs_{:.1f}_'\
                     'ad_{:d}_ld_{:d}_bs_200_se_500_ne_{:d}_cv_{:d}_'\
@@ -150,6 +150,7 @@ def main(representation_pth='TE_NM',
         with open(dir_pth['result']+fit_fname, 'wb') as fid:
             pickle.dump(gmm, fid)
         print('Completed {:s} component model for cv {}'.format(str(n_components),cvfold))
+        print(dir_pth['result']+fit_fname)
     return 
 
 if __name__ == "__main__":
