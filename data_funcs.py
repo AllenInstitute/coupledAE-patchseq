@@ -303,7 +303,7 @@ def TE_get_splits(matdict):
     return cvset,testset
 
 
-def TE_get_splits_45(matdict):
+def TE_get_splits_45(matdict,cvfold):
     """Creates a test set with ~10% of the samples. Remaining cells are used for 45-fold cross validation
     Test and validation sets are stratified based on T cluster labels.
     
@@ -318,16 +318,37 @@ def TE_get_splits_45(matdict):
     ind_dict = [{'train':train_ind, 'val':val_ind} for train_ind, val_ind in skf.split(X=np.zeros(shape=matdict['cluster'].shape), y=matdict['cluster'])]
 
     #Pool a fraction of the stratified folds to define the test set
-    testset = []
+    test_ind = []
     for i in range(45,50,1):
-        testset.append(ind_dict[i]['val'])
-    testset = np.concatenate(testset)
+        test_ind.append(ind_dict[i]['val'])
+    test_ind = np.concatenate(test_ind)
     
     #Ensure test set cells do not appear in any of the training sets.
     cvset = []
     for i in range(1,len(ind_dict),1):
-        ind_dict[i]['train'] = np.setdiff1d(ind_dict[i]['train'],testset)
-        ind_dict[i]['val'] = np.setdiff1d(ind_dict[i]['val'],testset)
+        ind_dict[i]['train'] = np.setdiff1d(ind_dict[i]['train'],test_ind)
+        ind_dict[i]['val'] = np.setdiff1d(ind_dict[i]['val'],test_ind)
         cvset.append(ind_dict[i])
 
-    return cvset,testset
+    train_ind = cvset[cvfold]['train']
+    val_ind   = cvset[cvfold]['val']
+    return train_ind,val_ind,test_ind
+
+
+
+def TE_get_splits_5(matdict,cvfold):
+    """Creates 80-20 split stratified based on T cluster labels. val_ind is same as test_ind
+    
+    Returns:
+        cvset -- list with 5 cross-validation folds. 
+        testset -- indices for test cells (same as validation set)
+    Arguments:
+        matdict -- dataset dictionary
+    """
+
+    skf = StratifiedKFold(n_splits=5, random_state=0, shuffle=True)
+    ind_dict = [{'train':train_ind, 'val':val_ind} for train_ind, val_ind in skf.split(X=np.zeros(shape=matdict['cluster'].shape), y=matdict['cluster'])]
+    train_ind = ind_dict[cvfold]['train']
+    val_ind   = ind_dict[cvfold]['val']
+    test_ind  = ind_dict[cvfold]['val']
+    return train_ind,val_ind,test_ind

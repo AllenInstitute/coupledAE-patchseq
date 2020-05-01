@@ -32,7 +32,7 @@ import time
 import numpy as np
 import scipy.io as sio
 import tensorflow as tf
-from data_funcs import TE_get_splits_45
+from data_funcs import TE_get_splits_45,TE_get_splits_5
 from ae_model_def import Model_TE_aug_decoders
 import csv
 from timebudget import timebudget
@@ -146,9 +146,8 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     #Data operations and definitions:
     D = sio.loadmat(dir_pth['data']+'PS_v5_beta_0-4_pc_scaled_ipxf_eqTE.mat',squeeze_me=True)
     D['E_pcipxf'] = np.concatenate([D['E_pc_scaled'],D['E_feature']],axis = 1)
-    cvset,test_ind = TE_get_splits_45(matdict=D)
-    train_ind = cvset[cvfold]['train']
-    val_ind = cvset[cvfold]['val']
+    #train_ind,val_ind,test_ind = TE_get_splits_45(matdict=D,cvfold=cvfold)
+    train_ind,val_ind,test_ind = TE_get_splits_5(matdict=D,cvfold=cvfold)
 
     Partitions = {'train_ind':train_ind,'val_ind':val_ind,'test_ind':test_ind}
 

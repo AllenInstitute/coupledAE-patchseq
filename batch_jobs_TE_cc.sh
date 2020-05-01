@@ -1,10 +1,10 @@
-for cv in {0..43}
+for ri in {0..20}
 do
     for csTE in 0.5 1.0
     do
         for aug in 1
         do
-            jobid="TE_NM"$cv"cv"$csTE"csTE"$aug"aug"
+            jobid="TE_NM"$ri"ri"$csTE"csTE"$aug"aug"
             echo '#!/bin/bash'>subjob.bash
             echo '#PBS -q celltypes'>>subjob.bash
             echo '#PBS -N '${jobid//./-} >>subjob.bash
@@ -18,19 +18,19 @@ do
             echo 'source activate tf21-cpu'>>subjob.bash
             echo 'python -m ae_model_train_v2' \
                     ' --batchsize 200' \
-                    ' --cvfold '$cv \
+                    ' --cvfold 0'\
                     ' --alpha_T 1.0'\
                     ' --alpha_E 1.0'\
                     ' --lambda_TE '$csTE \
                     ' --augment_decoders '$aug \
-                    ' --latent_dim 5'\
+                    ' --latent_dim 3'\
                     ' --n_epochs 1500'\
                     ' --n_steps_per_epoch 500'\
                     ' --ckpt_save_freq 500'\
                     ' --n_finetuning_steps 500'\
-                    ' --run_iter 0'\
+                    ' --run_iter '$ri \
                     ' --model_id NM'\
-                    ' --exp_name TE_NM'>>subjob.bash
+                    ' --exp_name TE_NM_cc'>>subjob.bash
             echo '...'
             sleep 0.1
             wait
