@@ -74,7 +74,7 @@ def main(representation_pth='TE_NM',
     #Representations
     latent_dim = 3
     ne = 1500
-    fiton=['zT']
+    fiton=['zT','zE']
 
     fname = 'gmmfit_restricted_'+ \
                     'perc_'+ str(perc) + \
