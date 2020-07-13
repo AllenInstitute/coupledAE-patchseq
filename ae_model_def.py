@@ -140,7 +140,7 @@ class Decoder_E(keras.layers.Layer):
         self.fc1  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc1')
         self.fc2  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc2')
         self.fc3  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc3')
-        self.drp = keras.layers.Dropout(rate=0.1) #extra regularization 
+        self.drp = keras.layers.Dropout(rate=0.1) 
         self.Xout = keras.layers.Dense(output_dim, activation='linear',name=name+'Xout')
         return
 
@@ -375,9 +375,9 @@ def min_var_loss(zi, zj, Wij=None):
     """
     SVD is calculated over entire batch. MSE is calculated over only paired entries within batch
     Args:
-        zi: i-th representation
-        zj: j-th representation (same size as zi)
-        Wij: indicator vector (1 if samples are matched, 0 otherwise)
+        zi: i-th representation (batch_size x latent_dim)
+        zj: j-th representation (batch_size x latent_dim)
+        Wij: indicator (1 if samples are paired, 0 otherwise)
     """
     batch_size = tf.shape(zi)[0]
     if Wij is None:
