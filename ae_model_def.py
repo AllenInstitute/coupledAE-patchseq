@@ -6,24 +6,25 @@ from tensorflow.python.keras.utils import tf_utils
 from tensorflow.python.ops import array_ops
 import pdb
 
+
 class Encoder_T(keras.layers.Layer):
-    """Maps patch-seq transcriptomic profiles to latent space"""
+    """
+    Encoder for transcriptomic data
+    
+    Args:
+        dropout_rate: dropout probability if training=True
+        latent_dim: dimensionality of representation
+        intermediate_dim: number of units in hidden layers
+    """
 
     def __init__(self,
                  dropout_rate=0.5,
                  latent_dim=3,
                  intermediate_dim=50,
-                 training=True,
                  name='Encoder_T',
                  dtype=tf.float32,
                  **kwargs):
-        """ Encoder for transcriptomic data
-        Args:
-            dropout_rate: Dropout probability for dropout layer.
-            latent_dim: latent space dimenionality.
-            intermediate_dim: Number of units in hidden layers
-            name: 'Encoder_T'
-        """
+
         super(Encoder_T, self).__init__(name=name, **kwargs)
         self.drp = keras.layers.Dropout(rate=dropout_rate)
         self.fc0 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc0')
@@ -46,7 +47,13 @@ class Encoder_T(keras.layers.Layer):
 
 
 class Decoder_T(keras.layers.Layer):
-    """Reconstructs gene profile from latent space position"""
+    """
+    Decoder for transcriptomic data
+
+    Args:
+        output_dim: number of outputs
+        intermediate_dim: number of units in hidden layers
+    """
 
     def __init__(self,
                  output_dim,
@@ -54,13 +61,7 @@ class Decoder_T(keras.layers.Layer):
                  name='Decoder_T',
                  dtype=tf.float32,
                  **kwargs):
-        """Decoder for transcriptomic data
-        Args:
-            output_dim: Same as input dimensionality if using as an autoencoder.
-            intermediate_dim: Number of units in hidden layers
-            training: boolean value to indicate model operation mode
-            name: 'Decoder_T'
-        """
+        
         super(Decoder_T, self).__init__(name=name, **kwargs)
         self.fc0 = keras.layers.Dense(intermediate_dim, activation='relu', name='fc0')
         self.fc1 = keras.layers.Dense(intermediate_dim, activation='relu', name='fc1')
@@ -79,7 +80,15 @@ class Decoder_T(keras.layers.Layer):
 
 
 class Encoder_E(keras.layers.Layer):
-    """Maps patch-seq electrophysiology profiles to latent space"""
+    """
+    Decoder for electrophysiology data
+    
+    Args:
+        gaussian_noise_sd: std of gaussian noise injection if training=True
+        dropout_rate: dropout probability if training=True
+        latent_dim: representation dimenionality
+        intermediate_dim: number of units in hidden layers
+    """
 
     def __init__(self,
                  gaussian_noise_sd=0.05,
@@ -89,14 +98,7 @@ class Encoder_E(keras.layers.Layer):
                  name='Encoder_E',
                  dtype=tf.float32,
                  **kwargs):
-        """
-        Initializes the Encoder for electrophysiology data.
-        Args:
-            gaussian_noise_sd: Noise addition in training mode to E features
-            dropout_rate: Dropout probability for dropout layer.
-            latent_dim: latent space dimenionality.
-            intermediate_dim: Number of units in hidden layers
-        """
+        
         super(Encoder_E, self).__init__(name=name, **kwargs)
         self.gnoise = WeightedGaussianNoise(stddev=gaussian_noise_sd)
         self.drp = keras.layers.Dropout(rate=dropout_rate)
@@ -120,7 +122,14 @@ class Encoder_E(keras.layers.Layer):
         return z
 
 class Decoder_E(keras.layers.Layer):
-    """Reconstructs gene profile from latent space position"""
+    """
+    Initializes the Encoder for electrophysiology data.
+
+    Args:
+        output_dim: Should be same as input dim if using as an autoencoder
+        intermediate_dim: Number of units in hidden keras.layers
+        training: boolean value to indicate model operation mode
+    """
 
     def __init__(self,
                  output_dim,
@@ -128,18 +137,12 @@ class Decoder_E(keras.layers.Layer):
                  name='Decoder_E',
                  dtype=tf.float32,
                  **kwargs):
-        """
-        Initializes the Encoder for electrophysiology data.
-        Args:
-            output_dim: Should be same as input dim if using as an autoencoder
-            intermediate_dim: Number of units in hidden keras.layers
-            training: boolean value to indicate model operation mode
-        """
+   
         super(Decoder_E, self).__init__(name=name, **kwargs)
-        self.fc0  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc0')
-        self.fc1  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc1')
-        self.fc2  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc2')
-        self.fc3  = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc3')
+        self.fc0 = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc0')
+        self.fc1 = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc1')
+        self.fc2 = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc2')
+        self.fc3 = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc3')
         self.drp = keras.layers.Dropout(rate=0.1) 
         self.Xout = keras.layers.Dense(output_dim, activation='linear',name=name+'Xout')
         return
@@ -155,7 +158,20 @@ class Decoder_E(keras.layers.Layer):
 
 
 class Model_TE(tf.keras.Model):
-    """Combine two AE agents"""
+    """
+    Coupled autoencoder
+
+    Args:
+        T_output_dim: n(genes)
+        E_output_dim: n(features)
+        T_intermediate_dim: units in hidden layers of T autoencoder
+        E_intermediate_dim: units in hidden layers of T autoencoder
+        T_dropout: dropout probability for 
+        E_gnoise_sd: gaussian noise std for E data
+        E_dropout: dropout for E data
+        latent_dim: dim for representations
+        name: TE
+    """
 
     def __init__(self,
                T_output_dim,
@@ -168,42 +184,39 @@ class Model_TE(tf.keras.Model):
                latent_dim=3,
                name='TE',
                **kwargs):
-        """
-        Encoder for transcriptomic data
-        Args:
-            T_output_dim: Number of genes in T data
-            E_output_dim: Number of features in E data
-            T_intermediate_dim: hidden layer dims for T model
-            E_intermediate_dim: hidden layer dims for E model
-            T_dropout: dropout for T data
-            E_gnoise_sd: gaussian noise std for E data
-            E_dropout: dropout for E data
-            latent_dim: dim for representations
-            name: TE
-        """
+  
         super(Model_TE, self).__init__(name=name, **kwargs)
-        self.encoder_T = Encoder_T(dropout_rate=T_dropout,latent_dim=latent_dim, intermediate_dim=T_intermediate_dim, name='Encoder_T')
-        self.encoder_E = Encoder_E(gaussian_noise_sd=E_gnoise_sd, dropout_rate=E_dropout, latent_dim=latent_dim, intermediate_dim=E_intermediate_dim, name='Encoder_E')
-        
-        self.decoder_T = Decoder_T(output_dim=T_output_dim, intermediate_dim=T_intermediate_dim, name='Decoder_T')
-        self.decoder_E = Decoder_E(output_dim=E_output_dim, intermediate_dim=E_intermediate_dim, name='Decoder_E')
+        self.encoder_T = Encoder_T(dropout_rate=T_dropout,
+                                   latent_dim=latent_dim,
+                                   intermediate_dim=T_intermediate_dim,
+                                   name='Encoder_T')
+
+        self.encoder_E = Encoder_E(gaussian_noise_sd=E_gnoise_sd,
+                                   dropout_rate=E_dropout,
+                                   latent_dim=latent_dim,
+                                   intermediate_dim=E_intermediate_dim,
+                                   name='Encoder_E')
+
+        self.decoder_T = Decoder_T(output_dim=T_output_dim,
+                                   intermediate_dim=T_intermediate_dim,
+                                   name='Decoder_T')
+
+        self.decoder_E = Decoder_E(output_dim=E_output_dim,
+                                   intermediate_dim=E_intermediate_dim,
+                                   name='Decoder_E')
 
     def call(self, inputs, train_T=True, train_E=True):
         """
-        Encoder for transcriptomic data
         Args:
-            training: Toggles dropout/noise for T and E arms. Used to report training/validation losses without the noise.
-            train_both: Toggles dropout for only the T arm. Used to fine tune the E representation.
+            train_T: augment T data
+            train_E: augment E data
         """
         #T arm
         zT = self.encoder_T(inputs[0],training=train_T)
-        XrT = self.decoder_T(zT,training=train_T)
-        
-        #E arm
         zE = self.encoder_E(inputs[1],training=train_E)
+
+        XrT = self.decoder_T(zT,training=train_T)
         XrE = self.decoder_E(zE,training=train_E)
-
-
         return zT,zE,XrT,XrE
 
 
@@ -246,47 +259,19 @@ class WeightedGaussianNoise(keras.layers.Layer):
         return input_shape
 
 
-class Model_T(tf.keras.Model):
-    """Single AE agent for transcriptomic data"""
-
-    def __init__(self,
-               T_output_dim,
-               T_intermediate_dim=50,
-               T_dropout=0.5,
-               latent_dim=3,
-               name='T',
-               **kwargs):
-        """
-        Encoder for transcriptomic data
-        Args:
-            T_output_dim: Number of genes in T data
-            T_intermediate_dim: hidden layer dims for T model
-            T_dropout: dropout for T data
-            latent_dim: dim for representations
-            name: T
-        """
-        super(Model_T, self).__init__(name=name, **kwargs)
-        self.encoder_T = Encoder_T(dropout_rate=T_dropout,latent_dim=latent_dim, intermediate_dim=T_intermediate_dim, name='Encoder_T')
-        self.decoder_T = Decoder_T(output_dim=T_output_dim, intermediate_dim=T_intermediate_dim, name='Decoder_T')
-        
-
-    def call(self, inputs, train_T=True, train_E=True):
-        """
-        Encoder for transcriptomic data
-        Args:
-            training: Toggles dropout/noise for T and E arms. Used to report training/validation losses without the noise.
-            train_both: Toggles dropout for only the T arm. Used to fine tune the E representation.
-        """
-        #T arm
-        zT = self.encoder_T(inputs,training=train_T)
-        XrT = self.decoder_T(zT,training=train_T)
-    
-        return zT,XrT
-
-
 class Model_TE_aug_decoders(tf.keras.Model):
-    """Combine two AE agents. Loss function considers the cross modal reconstruction from the representations."""
-
+    """Coupled autoencoder model
+    Args:
+        T_output_dim: Number of genes in T data
+        E_output_dim: Number of features in E data
+        T_intermediate_dim: hidden layer dims for T model
+        E_intermediate_dim: hidden layer dims for E model
+        T_dropout: dropout for T data
+        E_gnoise_sd: gaussian noise std for E data
+        E_dropout: dropout for E data
+        latent_dim: dim for representations
+        name: TE
+    """
     def __init__(self,
                T_output_dim,
                E_output_dim,
@@ -302,19 +287,7 @@ class Model_TE_aug_decoders(tf.keras.Model):
                latent_dim=3,
                name='TE',
                **kwargs):
-        """
-        Encoder for transcriptomic data
-        Args:
-            T_output_dim: Number of genes in T data
-            E_output_dim: Number of features in E data
-            T_intermediate_dim: hidden layer dims for T model
-            E_intermediate_dim: hidden layer dims for E model
-            T_dropout: dropout for T data
-            E_gnoise_sd: gaussian noise std for E data
-            E_dropout: dropout for E data
-            latent_dim: dim for representations
-            name: TE
-        """
+
         super(Model_TE_aug_decoders, self).__init__(name=name, **kwargs)
         self.alpha_T = tf.constant(alpha_T,dtype=tf.float32)
         self.alpha_E = tf.constant(alpha_E,dtype=tf.float32)
@@ -329,10 +302,10 @@ class Model_TE_aug_decoders(tf.keras.Model):
 
     def call(self, inputs, train_T=True, train_E=True, augment_decoders=True):
         """
-        Encoder for transcriptomic data
         Args:
-            training: Toggles dropout/noise for T and E arms. Used to report training/validation losses without the noise.
-            train_both: Toggles dropout for only the T arm. Used to fine tune the E representation.
+            train_T: training/inference mode for T autoencoder
+            train_E: training/inference mode for E autoencoder
+            augment_decoders: to augment decoder with cross modal representation
         """
         #T arm forward pass
         XT = inputs[0]
