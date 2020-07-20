@@ -53,53 +53,26 @@ parser.add_argument("--run_iter",          default=0,                       type
 parser.add_argument("--model_id",          default='NM',                    type=str,     help="Model-specific id")
 parser.add_argument("--exp_name",          default='TE_NM',                 type=str,     help="Experiment set")
 
-def set_paths(exp_name='TEMP'):
-    from pathlib import Path   
-    dir_pth = {}
-    curr_path = str(Path().absolute())
-    if '/Users/fruity' in curr_path:
-        base_path = '/Users/fruity/Dropbox/AllenInstitute/CellTypes/'
-        dir_pth['data'] = base_path + 'dat/raw/patchseq-v4/'
-    elif '/home/rohan' in curr_path:
-        base_path = '/home/rohan/Dropbox/AllenInstitute/CellTypes/'
-        dir_pth['data'] = base_path + 'dat/raw/patchseq-v4/'
-    elif '/allen' in curr_path:
-        base_path = '/allen/programs/celltypes/workgroups/mousecelltypes/Rohan/'
-        dir_pth['data'] = base_path + 'dat/raw/patchseq-v4/'
+def set_paths(exp_name='Test'):
+    """Set data and results path for network training. 
 
-    dir_pth['result'] =     base_path + 'dat/result/' + exp_name + '/'
-    dir_pth['checkpoint'] = dir_pth['result'] + 'checkpoints/'
-    dir_pth['logs'] =       dir_pth['result'] + 'logs/'
+    Args:
+        exp_name (str): Folder name to save results. Defaults to 'Test'.
 
-    Path(dir_pth['logs']).mkdir(parents=True, exist_ok=True) 
-    Path(dir_pth['checkpoint']).mkdir(parents=True, exist_ok=True) 
-    return dir_pth
-
-
-class Datagen():
-    """Iterator class to sample the dataset. Tensors T_dat and E_dat are provided at runtime.
+    Returns:
+        dir_pth (dict): dictionary with paths for logs, checkpoints, 
     """
-    def __init__(self, maxsteps, batchsize, T_dat, E_dat):
-        self.T_dat = T_dat
-        self.E_dat = E_dat
-        self.batchsize = batchsize
-        self.maxsteps = maxsteps
-        self.n_samples = self.T_dat.shape[0]
-        self.count = 0
-        print('Initializing generator...')
-        return
+    from pathlib import Path   
 
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.count < self.maxsteps:
-            self.count = self.count+1
-            ind = np.random.randint(0, self.n_samples, self.batchsize)
-            return (tf.constant(self.T_dat[ind, :],dtype=tf.float32), 
-                    tf.constant(self.E_dat[ind, :],dtype=tf.float32))
-        else:
-            raise StopIteration
+    dir_pth = {}
+    current_path = Path().absolute()
+    dir_pth['data'] = current_path / 'data/'
+    dir_pth['result'] = current_path / 'results/' / exp_name
+    dir_pth['checkpoint'] = dir_pth['result'] / 'checkpoints'
+    dir_pth['logs'] = dir_pth['result'] / 'logs'
+    Path(dir_pth['logs']).mkdir(parents=True, exist_ok=True)
+    Path(dir_pth['checkpoint']).mkdir(parents=True, exist_ok=True)
+    return dir_pth
 
 def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
          alpha_T=1.0,alpha_E=1.0,lambda_TE=1.0,augment_decoders=True,
@@ -180,7 +153,8 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     @tf.function
     def train_fn(model, optimizer, XT, XE, train_T=False, train_E=False, augment_decoders=True, subnetwork='all'):
         """Enclose this with tf.function to create a fast training step. Function can be used for inference as well. 
-        Arguments:
+        
+        Args:
             XT: T data for training or validation
             XE: E data for training or validation
             train_T: {bool} -- Switch augmentation for T data on or off
