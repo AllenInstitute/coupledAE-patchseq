@@ -1,5 +1,6 @@
 **[Consistent cross-modal identification of cortical neurons with coupled autoencoders](https://www.biorxiv.org/content/10.1101/2020.06.30.181065v1)**
 
+![coupledAE_and_representations](./assets/illustration.png)
 **Abstract**
 >Consistent identification of neurons and neuronal cell types across different observation modalities is an important problem in neuroscience. Here, we present an optimization framework to learn coordinated representations of multimodal data, and apply it to a large Patch-seq dataset of mouse cortical interneurons. Our approach reveals strong alignment between transcriptomic and electrophysiological profiles of neurons, enables accurate cross-modal data prediction, and identifies cell types that are consistent across modalities.
 
@@ -17,8 +18,8 @@
  - `model.py`: coupled autoencoder implementation
  - `train.py`: specifies the training
  - `/utils`: helper functions
- - `/notebooks/`: minimal demos for
+ - `/notebooks/`: simplified examples for the main results of the manuscript.
     - `model_training.ipynb`: short training run for a coupled autoencoder model 
-    - `clustering.ipynb`: demonstrates unsupervised, _de novo_ clustering for the Allen Institute Patchseq dataset using representations from one of the pre-trained models
-    - `crossmodal_prediction.ipynb`: shows how to perform cross-modal prediction using a pre-trained network
+    - `clustering.ipynb`: unsupervised, _de novo_ clustering of the aligned representations for the Patch-seq dataset
+    - `crossmodal_prediction.ipynb`: cross-modal prediction for validation cells using a pre-trained network
  
