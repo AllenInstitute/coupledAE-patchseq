@@ -332,9 +332,9 @@ class Model_TE_aug_decoders(tf.keras.Model):
         cpl_loss_TE = min_var_loss(zT, zE)
 
         #Append to keras model losses for gradient calculations
-        self.add_loss(lambda: self.alpha_T*mse_loss_T)
-        self.add_loss(lambda: self.alpha_E*mse_loss_E)
-        self.add_loss(lambda: self.lambda_TE*cpl_loss_TE)
+        self.add_loss(self.alpha_T*mse_loss_T)
+        self.add_loss(self.alpha_E*mse_loss_E)
+        self.add_loss(self.lambda_TE*cpl_loss_TE)
 
         #Cross modal reconstructions - treat zE and zT as constants for this purpose
         if augment_decoders:
@@ -342,13 +342,15 @@ class Model_TE_aug_decoders(tf.keras.Model):
             XrE_aug = self.decoder_E(tf.stop_gradient(zT),training=train_E)
             mse_loss_T_aug = tf.reduce_mean(tf.math.squared_difference(XT, XrT_aug))
             mse_loss_E_aug = tf.reduce_mean(tf.multiply(tf.math.squared_difference(XE, XrE_aug),maskE))
-            self.add_loss(lambda: self.alpha_T*mse_loss_T_aug)
-            self.add_loss(lambda: self.alpha_E*mse_loss_E_aug)
+            self.add_loss(self.alpha_T*mse_loss_T_aug)
+            self.add_loss(self.alpha_E*mse_loss_E_aug)
         
         #For logging only
         self.mse_loss_T = mse_loss_T
         self.mse_loss_E = mse_loss_E
         self.mse_loss_TE = tf.reduce_mean(tf.math.squared_difference(zT, zE))
+        self.mse_loss_T_aug = mse_loss_T_aug
+        self.mse_loss_E_aug = mse_loss_E_aug
         return zT,zE,XrT,XrE
         
 

@@ -1,25 +1,3 @@
-#Model updated for TF2.0
-
-# 1. T and E data are matched 
-# 2. Updated model can use cross modal reconstruction loss (set with flag)
-
-# echo "python -m ae_model_train_v2 "\
-#       "--batchsize 100 "\
-#       "--cvfold 0 "\
-#       "--Edat ipfx "\
-#       "--alpha_T 1.0 "\
-#       "--alpha_E 1.0 "\
-#       "--lambda_TE 0.0"\
-#       "--augment_decoders 0 "\
-#       "--latent_dim 3 "\
-#       "--n_epochs 10 "\
-#       "--n_steps_per_epoch 500 "\
-#       "--ckpt_save_freq 1000 "\
-#       "--n_finetuning_steps 10 "\
-#       "--run_iter 0 "\
-#       "--model_id TEST "\
-#       "--exp_name TEST"
-
 import argparse
 import csv
 import os
@@ -28,66 +6,63 @@ import pdb
 import numpy as np
 import scipy.io as sio
 import tensorflow as tf
-from timebudget import timebudget
 
-from ae_model_def import Model_TE_aug_decoders
-from data_funcs import TE_get_splits_5, TE_get_splits_45
+from model import Model_TE_aug_decoders
+from utils.dataset import load_bioarxiv_dataset,partitions, Datagen
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--batchsize",         default=200,                     type=int,     help="Batch size")
-parser.add_argument("--cvfold",            default=0,                       type=int,     help="45 fold CV sets (range from 0 to 44)")
-parser.add_argument("--Edat",              default='pcipfx',                type=str,     help="`pc` or `ipfx` or `pcifpx`")
-parser.add_argument("--alpha_T",           default=1.0,                     type=float,   help="T Reconstruction loss weight")
-parser.add_argument("--alpha_E",           default=1.0,                     type=float,   help="E Reconstruction loss weight")
-parser.add_argument("--lambda_TE",         default=1.0,                     type=float,   help="Coupling loss weight")
-parser.add_argument("--augment_decoders",  default=1,                       type=int,     help="0 or 1 - Train with cross modal reconstruction")
-parser.add_argument("--latent_dim",        default=3,                       type=int,     help="Number of latent dims")
+parser.add_argument("--batchsize",         default=200,        type=int,     help="Batch size")
+parser.add_argument("--cvfold",            default=0,          type=int,     help="Partition id (n_partitions=40)")
+parser.add_argument("--alpha_T",           default=1.0,        type=float,   help="T Reconstruction loss weight")
+parser.add_argument("--alpha_E",           default=1.0,        type=float,   help="E Reconstruction loss weight")
+parser.add_argument("--lambda_TE",         default=1.0,        type=float,   help="Coupling loss weight")
+parser.add_argument("--augment_decoders",  default=1,          type=int,     help="0 or 1 - Train with cross modal reconstruction")
+parser.add_argument("--latent_dim",        default=3,          type=int,     help="Number of latent dims")
+parser.add_argument("--n_epochs",          default=1500,       type=int,     help="Number of epochs to train")
+parser.add_argument("--n_steps_per_epoch", default=500,        type=int,     help="Number of model updates per epoch")
+parser.add_argument("--ckpt_save_freq",    default=1000,        type=int,     help="Frequency of checkpoint saves")
+parser.add_argument("--n_finetuning_steps",default=100,        type=int,     help="Number of fine tuning steps for E agent")
+parser.add_argument("--run_iter",          default=0,          type=int,     help="Run-specific id")
+parser.add_argument("--model_id",          default='cplAE',    type=str,     help="Model-specific id")
+parser.add_argument("--exp_name",          default='training', type=str,     help="Experiment set")
 
-parser.add_argument("--n_epochs",          default=1500,                    type=int,     help="Number of epochs to train")
-parser.add_argument("--n_steps_per_epoch", default=500,                     type=int,     help="Number of model updates per epoch")
-parser.add_argument("--ckpt_save_freq",    default=100,                     type=int,     help="Frequency of checkpoint saves")
-parser.add_argument("--n_finetuning_steps",default=100,                     type=int,     help="Number of fine tuning steps for E agent")
 
-parser.add_argument("--run_iter",          default=0,                       type=int,     help="Run-specific id")
-parser.add_argument("--model_id",          default='NM',                    type=str,     help="Model-specific id")
-parser.add_argument("--exp_name",          default='TE_NM',                 type=str,     help="Experiment set")
-
-def set_paths(exp_name='Test'):
+def set_paths(exp_name='training'):
     """Set data and results path for network training. 
 
     Args:
-        exp_name (str): Folder name to save results. Defaults to 'Test'.
+        exp_name (str): Folder name to save results.
 
     Returns:
-        dir_pth (dict): dictionary with paths for logs, checkpoints, 
+        dir_pth (dict)
     """
-    from pathlib import Path   
+    from pathlib import Path
 
     dir_pth = {}
     current_path = Path().absolute()
-    dir_pth['data'] = current_path / 'data/'
-    dir_pth['result'] = current_path / 'results/' / exp_name
+    dir_pth['data'] = str(current_path / 'data/proc') + '/'
+    dir_pth['result'] = current_path / 'data' / exp_name
     dir_pth['checkpoint'] = dir_pth['result'] / 'checkpoints'
     dir_pth['logs'] = dir_pth['result'] / 'logs'
     Path(dir_pth['logs']).mkdir(parents=True, exist_ok=True)
     Path(dir_pth['checkpoint']).mkdir(parents=True, exist_ok=True)
     return dir_pth
 
-def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
-         alpha_T=1.0,alpha_E=1.0,lambda_TE=1.0,augment_decoders=True,
-         latent_dim=3,n_epochs=1500, n_steps_per_epoch=500, ckpt_save_freq=100,
+
+def main(batchsize=200, cvfold=0,
+         alpha_T=1.0, alpha_E=1.0, lambda_TE=1.0, augment_decoders=True,
+         latent_dim=3, n_epochs=1500, n_steps_per_epoch=500, ckpt_save_freq=100,
          n_finetuning_steps=100,
-         run_iter=0, model_id='NM', exp_name='TE_NM'):
+         run_iter=0, model_id='cplAE', exp_name='training'):
     
     dir_pth = set_paths(exp_name=exp_name)
-
+    
     #Augmenting only hurts of networks are not coupled.
     if lambda_TE==0.0:
         augment_decoders=0
 
     fileid = model_id + \
-        '_Edat_' + str(Edat) + \
         '_aT_' + str(alpha_T) + \
         '_aE_' + str(alpha_E) + \
         '_cs_' + str(lambda_TE) + \
@@ -103,22 +78,12 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     #Convert to boolean
     augment_decoders=augment_decoders>0
 
-    if Edat == 'pc':
-        Edat = 'E_pc_scaled'
-    elif Edat == 'ipfx':
-        Edat = 'E_feature'
-    elif Edat == 'pcipfx':
-        Edat = 'E_pcipxf'
-    else:
-        raise ValueError('Edat must be spc or ipfx!')
- 
-    #Data operations and definitions:
-    D = sio.loadmat(dir_pth['data']+'PS_v5_beta_0-4_pc_scaled_ipxf_eqTE.mat',squeeze_me=True)
-    D['E_pcipxf'] = np.concatenate([D['E_pc_scaled'],D['E_feature']],axis = 1)
-    #train_ind,val_ind,test_ind = TE_get_splits_45(matdict=D,cvfold=cvfold)
-    train_ind,val_ind,test_ind = TE_get_splits_5(matdict=D,cvfold=cvfold)
+    Edat = 'E_pcipfx'
 
-    Partitions = {'train_ind':train_ind,'val_ind':val_ind,'test_ind':test_ind}
+    #Data operations:
+    D = load_bioarxiv_dataset(dir_pth['data'])
+    ind_dict = partitions(D['cluster'], n_partitions=40, seed=0)
+    train_ind,val_ind = ind_dict[cvfold]['train'],ind_dict[cvfold]['val']
 
     train_T_dat = D['T_dat'][train_ind,:]
     train_E_dat = D[Edat][train_ind,:]
@@ -149,7 +114,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
                         latent_dim=latent_dim,
                         name='TE')
 
-    #Model training functions 
+    #Model training function 
     @tf.function
     def train_fn(model, optimizer, XT, XE, train_T=False, train_E=False, augment_decoders=True, subnetwork='all'):
         """Enclose this with tf.function to create a fast training step. Function can be used for inference as well. 
@@ -180,8 +145,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
         optimizer.apply_gradients(zip(grads, trainable_weights))
         return zT, zE, XrT, XrE
 
-    #Model logging functions
-
+    #logging function
     def report_losses(model, epoch, datatype='train', verbose=False):
         mse_loss_T = model.mse_loss_T.numpy()
         mse_loss_E = model.mse_loss_E.numpy()
@@ -199,7 +163,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
         log_values = [epoch, mse_loss_T, mse_loss_E, mse_loss_TE]
         return log_name, log_values
     
-    def save_results(this_model,Data,fname,Inds=Partitions,Edat=Edat):
+    def save_results(this_model,Data,fname,Inds={},Edat=Edat):
         all_T_dat = tf.constant(Data['T_dat'])
         all_E_dat = tf.constant(Data[Edat])
         zT, zE, XrT, XrE = this_model((all_T_dat, all_E_dat), training=False)
@@ -235,7 +199,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
             model_TE((val_T_dat, val_E_dat), train_T=False, train_E=False)
             val_log_name, val_log_values = report_losses(model=model_TE, epoch=epoch, datatype='val_', verbose=True)
             
-            with open(dir_pth['logs']+fileid+'.csv', "a") as logfile:
+            with open(dir_pth['logs'] / (fileid+'.csv'), "a") as logfile:
                 writer = csv.writer(logfile, delimiter=',')
                 #Write headers to the log file
                 if epoch == 1:
@@ -246,13 +210,15 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
                 #Save model weights
                 model_TE.save_weights(dir_pth['checkpoint']+fileid+'_ckptep_'+str(epoch)+'-weights.h5')
                 #Save reconstructions and results for the full dataset:
-                save_results(this_model=model_TE,Data=D,fname=dir_pth['checkpoint']+fileid+'_ckptep_'+str(epoch)+'-summary.mat')
+                save_results(this_model=model_TE, Data=D, Inds={'train_ind': train_ind, 'val_ind': train_ind},
+                             fname=str(dir_pth['checkpoint']) / fileid+'_ckptep_'+str(epoch)+'-summary.mat')
             
     #Save model weights on exit
     model_TE.save_weights(dir_pth['result']+fileid+'-weights.h5')
     
     #Save reconstructions and results for the full dataset:
-    save_results(this_model=model_TE,Data=D,fname=dir_pth['result']+fileid+'-summary.mat')
+    save_results(this_model=model_TE, Data=D, Inds={'train_ind': train_ind, 'val_ind': train_ind},
+                 fname=dir_pth['result'] / fileid+'-summary.mat')
 
     print('\n\n--- fine tuning loop begins ---')
     #Fine tuning loop ----------------------------------------------------------------------
