@@ -46,7 +46,7 @@ def load_bioarxiv_dataset(data_path):
         data (dict)
     """
     data = sio.loadmat(
-        data_path + 'PS_v5_beta_0-4_pc_scaled_ipxf_eqTE.mat', squeeze_me=True)
+        data_path + 'PS_v5_beta_0-4_pc_scaled_ipfx_eqTE.mat', squeeze_me=True)
     data['E_pcipfx'] = np.concatenate(
         [data['E_pc_scaled'], data['E_feature']], axis=1)
     return data
