@@ -21,8 +21,8 @@ parser.add_argument("--augment_decoders",  default=1,          type=int,     hel
 parser.add_argument("--latent_dim",        default=3,          type=int,     help="Number of latent dims")
 parser.add_argument("--n_epochs",          default=1500,       type=int,     help="Number of epochs to train")
 parser.add_argument("--n_steps_per_epoch", default=500,        type=int,     help="Number of model updates per epoch")
-parser.add_argument("--ckpt_save_freq",    default=1000,        type=int,     help="Frequency of checkpoint saves")
-parser.add_argument("--n_finetuning_steps",default=100,        type=int,     help="Number of fine tuning steps for E agent")
+parser.add_argument("--ckpt_save_freq",    default=1000,       type=int,     help="Frequency of checkpoint saves")
+parser.add_argument("--n_finetuning_steps",default=500,        type=int,     help="Number of fine tuning steps for E agent")
 parser.add_argument("--run_iter",          default=0,          type=int,     help="Run-specific id")
 parser.add_argument("--model_id",          default='cplAE',    type=str,     help="Model-specific id")
 parser.add_argument("--exp_name",          default='training', type=str,     help="Experiment set")
@@ -42,7 +42,7 @@ def set_paths(exp_name='training'):
     dir_pth = {}
     current_path = Path().absolute()
     dir_pth['data'] = str(current_path / 'data/proc') + '/'
-    dir_pth['result'] = current_path / 'data' / exp_name
+    dir_pth['result'] = current_path / 'results' / exp_name
     dir_pth['checkpoint'] = dir_pth['result'] / 'checkpoints'
     dir_pth['logs'] = dir_pth['result'] / 'logs'
     Path(dir_pth['logs']).mkdir(parents=True, exist_ok=True)
@@ -53,7 +53,7 @@ def set_paths(exp_name='training'):
 def main(batchsize=200, cvfold=0,
          alpha_T=1.0, alpha_E=1.0, lambda_TE=1.0, augment_decoders=True,
          latent_dim=3, n_epochs=1500, n_steps_per_epoch=500, ckpt_save_freq=100,
-         n_finetuning_steps=100,
+         n_finetuning_steps=500,
          run_iter=0, model_id='cplAE', exp_name='training'):
     
     dir_pth = set_paths(exp_name=exp_name)
@@ -120,11 +120,13 @@ def main(batchsize=200, cvfold=0,
         """Enclose this with tf.function to create a fast training step. Function can be used for inference as well. 
         
         Args:
+        	model: tensorflow model
+        	optimizer: tensorflow optimizer
             XT: T data for training or validation
             XE: E data for training or validation
-            train_T: {bool} -- Switch augmentation for T data on or off
-            train_E {bool} -- Switch augmentation for E data on or off
-            subnetwork {str} -- 'all' or 'E'. 'all' trains the full network, 'E' trains only the E arm.
+            train_T (bool): Switch augmentation for T data on or off
+            train_E (bool): Switch augmentation for E data on or off
+            subnetwork (str): 'all' or 'E'. 'all' trains the full network, 'E' trains only the E arm.
         """
         
         with tf.GradientTape() as tape:
@@ -208,17 +210,17 @@ def main(batchsize=200, cvfold=0,
 
             if epoch % ckpt_save_freq == 0:
                 #Save model weights
-                model_TE.save_weights(dir_pth['checkpoint']+fileid+'_ckptep_'+str(epoch)+'-weights.h5')
+                model_TE.save_weights(str(dir_pth['checkpoint'] / (fileid+'_ckptep_'+str(epoch)+'-weights.h5')))
                 #Save reconstructions and results for the full dataset:
                 save_results(this_model=model_TE, Data=D, Inds={'train_ind': train_ind, 'val_ind': train_ind},
-                             fname=str(dir_pth['checkpoint']) / fileid+'_ckptep_'+str(epoch)+'-summary.mat')
+                             fname=str(dir_pth['checkpoint'] / (fileid+'_ckptep_'+str(epoch)+'-summary.mat')))
             
     #Save model weights on exit
-    model_TE.save_weights(dir_pth['result']+fileid+'-weights.h5')
+    model_TE.save_weights(str(dir_pth['result'] / (fileid+'-weights.h5')))
     
     #Save reconstructions and results for the full dataset:
     save_results(this_model=model_TE, Data=D, Inds={'train_ind': train_ind, 'val_ind': train_ind},
-                 fname=dir_pth['result'] / fileid+'-summary.mat')
+                 fname=str(dir_pth['result'] / (fileid+'-summary.mat')))
 
     print('\n\n--- fine tuning loop begins ---')
     #Fine tuning loop ----------------------------------------------------------------------
@@ -235,7 +237,7 @@ def main(batchsize=200, cvfold=0,
         model_TE((val_T_dat, val_E_dat), train_T=False, train_E=False)
         val_log_name, val_log_values = report_losses(model=model_TE, epoch=epoch, datatype='val_', verbose=True)
 
-        with open(dir_pth['logs']+fileid+'_'+str(n_finetuning_steps)+'_ft.csv', "a") as logfile:
+        with open(str(dir_pth['logs'] / (fileid+'_'+str(n_finetuning_steps)+'_ft.csv')), "a") as logfile:
             writer = csv.writer(logfile, delimiter=',')
             #Write headers to the log file
             if epoch == 0:
@@ -243,10 +245,10 @@ def main(batchsize=200, cvfold=0,
             writer.writerow(train_log_values+val_log_values)
     
     #Save model weights on exit
-    model_TE.save_weights(dir_pth['result']+fileid+'_'+str(n_finetuning_steps)+'_ft-weights.h5')
+    model_TE.save_weights(str(dir_pth['result'] / (fileid+'_'+str(n_finetuning_steps)+'_ft-weights.h5')))
 
     #Save reconstructions and results for the full dataset:
-    save_results(this_model=model_TE,Data=D,fname=dir_pth['result']+fileid+'_'+str(n_finetuning_steps)+'_ft-summary.mat')    
+    save_results(this_model=model_TE,Data=D,fname=str(dir_pth['result'] / (fileid+'_'+str(n_finetuning_steps)+'_ft-summary.mat')))
     return
 
 if __name__ == "__main__":
