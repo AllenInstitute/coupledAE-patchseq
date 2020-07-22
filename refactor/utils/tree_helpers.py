@@ -362,3 +362,47 @@ def simplify_tree(pruned_subtree,skip_nodes=None):
             simple_tree=HTree(htree_df=simple_tree_df)
         
     return simple_tree,skip_nodes
+
+
+def get_merged_ordered_classes(data_labels, htree_file='../data/proc/dend_RData_Tree_20181220.csv', n_required_classes=30):
+    """Provide merged labels based on the hierarchical tree.
+    Exits when number of labels in the data equals or is just above `n_required_classes`.
+
+    Args:
+        data_labels: np.array of cell type labels
+        htree_file (str): path to reference hierarchy .csv file 
+        n_required_classes (int): Number of unique labels
+
+    Returns:
+        new_data_labels: cell type labels merged as per the reference hierarchy
+        class_order: ordering of the merged cell classes based on the reference hierarchy
+    """
+    #Load inhibitory subtree
+    htree = HTree(htree_file=htree_file)
+    subtree = htree.get_subtree(node='n59')
+    L = subtree.get_mergeseq()
+
+    #Init:
+    n_remain_classes = np.unique(data_labels).size
+    n = 0
+
+    while n_remain_classes > n_required_classes:
+        n = n+1
+        merged_sample_labels = do_merges(labels=data_labels.copy(), list_changes=L, n_merges=n, verbose=False)
+        n_remain_classes = np.unique(merged_sample_labels).size
+
+    if n_remain_classes != n_required_classes:
+        print('WARNING: Merges for required number of classes not found. Returning a higher number of classes')
+        n = n-1
+
+    new_data_labels = do_merges(labels=data_labels, list_changes=L, n_merges=n, verbose=False)
+    print('Performed {:d} merges. Remaining classes in data = {:d}'.format(n, np.unique(new_data_labels).size))
+    assert np.all(np.isin(np.unique(new_data_labels), subtree.child)), "Merged labels are not listed as children in tree"
+
+    ind = np.isin(subtree.child, np.unique(new_data_labels))
+    remain_class_names = subtree.child[ind]
+    remain_class_x = subtree.x[ind]
+    remain_class_names = sorted(
+        list(set(zip(remain_class_names, remain_class_x))), key=lambda x: x[1])
+    class_order = [n[0] for n in remain_class_names]
+    return new_data_labels, class_order
