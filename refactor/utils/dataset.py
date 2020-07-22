@@ -1,3 +1,4 @@
+import json
 import tensorflow as tf
 import numpy as np
 import scipy.io as sio
@@ -45,10 +46,13 @@ def load_bioarxiv_dataset(data_path):
     Returns:
         data (dict)
     """
-    data = sio.loadmat(
-        data_path + 'PS_v5_beta_0-4_pc_scaled_ipfx_eqTE.mat', squeeze_me=True)
-    data['E_pcipfx'] = np.concatenate(
-        [data['E_pc_scaled'], data['E_feature']], axis=1)
+    data = sio.loadmat(data_path + 'PS_v5_beta_0-4_pc_scaled_ipfx_eqTE.mat', squeeze_me=True)
+    with open(data_path + 'E_names.json') as f:
+        ephys_names = json.load(f)
+    data['E_pcipfx'] = np.concatenate([data['E_pc_scaled'], data['E_feature']], axis=1)
+    data['pcipfx_names'] = np.concatenate([data['pc_name'],data['feature_name']])
+    temp = [ephys_names[f] for f in data['pcipfx_names']]
+    data['pcipfx_names'] = np.array(temp)
     return data
 
 

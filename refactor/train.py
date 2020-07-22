@@ -211,16 +211,13 @@ def main(batchsize=200, cvfold=0,
             if epoch % ckpt_save_freq == 0:
                 #Save model weights
                 model_TE.save_weights(str(dir_pth['checkpoint'] / (fileid+'_ckptep_'+str(epoch)+'-weights.h5')))
-                #Save reconstructions and results for the full dataset:
-                save_results(this_model=model_TE, Data=D, Inds={'train_ind': train_ind, 'val_ind': train_ind},
-                             fname=str(dir_pth['checkpoint'] / (fileid+'_ckptep_'+str(epoch)+'-summary.mat')))
             
     #Save model weights on exit
     model_TE.save_weights(str(dir_pth['result'] / (fileid+'-weights.h5')))
     
     #Save reconstructions and results for the full dataset:
-    save_results(this_model=model_TE, Data=D, Inds={'train_ind': train_ind, 'val_ind': train_ind},
-                 fname=str(dir_pth['result'] / (fileid+'-summary.mat')))
+    #save_results(this_model=model_TE, Data=D, Inds={'train_ind': train_ind, 'val_ind': train_ind},
+    #             fname=str(dir_pth['result'] / (fileid+'-summary.mat')))
 
     print('\n\n--- fine tuning loop begins ---')
     #Fine tuning loop ----------------------------------------------------------------------
@@ -248,7 +245,7 @@ def main(batchsize=200, cvfold=0,
     model_TE.save_weights(str(dir_pth['result'] / (fileid+'_'+str(n_finetuning_steps)+'_ft-weights.h5')))
 
     #Save reconstructions and results for the full dataset:
-    save_results(this_model=model_TE,Data=D,fname=str(dir_pth['result'] / (fileid+'_'+str(n_finetuning_steps)+'_ft-summary.mat')))
+    #save_results(this_model=model_TE,Data=D,fname=str(dir_pth['result'] / (fileid+'_'+str(n_finetuning_steps)+'_ft-summary.mat')))
     return
 
 if __name__ == "__main__":

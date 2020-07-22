@@ -26,21 +26,21 @@ def contingency(a, b, unique_a, unique_b):
     return C
 
 
-def matrix_scatterplot(M, xlabels, ylabels, fig_width=10, fig_height=14, scale_factor=10.0):
+def matrix_scatterplot(M, xticklabels, yticklabels, xlabel='', ylabel='', fig_width=10, fig_height=14, scale_factor=10.0):
     """Plots a matrix with points as in a scatterplot. Area of points proportional to each matrix element. 
     Suitable to show sparse matrices.
 
     Args:
         M (np.array): a 2D array
-        xlabels: label list
-        ylabels: label list
+        xticklabels: label list
+        yticklabels: label list
         fig_width (int): matplotlib figure width
         fig_height (int): matplotlib figure height
         scale_factor (float): scales the points by this value. 
     """
     Mplot = M.copy()*scale_factor
     Mplot = np.flip(Mplot, axis=0)
-    ylabels.reverse()
+    yticklabels.reverse()
     x = np.arange(0, M.shape[1], 1)
     y = np.arange(0, M.shape[0], 1)
     xx, yy = np.meshgrid(x, y)
@@ -50,11 +50,13 @@ def matrix_scatterplot(M, xlabels, ylabels, fig_width=10, fig_height=14, scale_f
     ax.set_xlim(np.min(x)-0.5, np.max(x)+0.5)
     ax.set_ylim(np.min(y)-0.5, np.max(y)+0.5)
     ax.set_xticks(x)
-    ax.set_xticklabels(xlabels, rotation=90)
+    ax.set_xticklabels(xticklabels, rotation=90)
     ax.set_yticks(y)
-    ax.set_yticklabels(ylabels, rotation=0)
+    ax.set_yticklabels(yticklabels, rotation=0)
     ax.xaxis.set_ticks_position('top')
     ax.yaxis.set_ticks_position('left')
+    ax.set_xlabel(xlabel, fontsize=12)
+    ax.set_ylabel(ylabel, fontsize=12)
 
     ax.tick_params(color='None')
     ax.spines["top"].set_visible(False)
