@@ -1,4 +1,4 @@
-**[Consistent cross-modal identification of cortical neurons with coupled autoencoders](https://www.biorxiv.org/content/10.1101/2020.06.30.181065v1)**
+### [Consistent cross-modal identification of cortical neurons with coupled autoencoders](https://www.biorxiv.org/content/10.1101/2020.06.30.181065v1)
 
 ![coupledAE_and_representations](./assets/illustration.png)
 **Abstract**
