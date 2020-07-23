@@ -166,7 +166,7 @@ class Model_TE(tf.keras.Model):
         T_dim: n(genes)
         E_dim: n(features)
         T_intermediate_dim: units in hidden layers of T autoencoder
-        E_intermediate_dim: units in hidden layers of T autoencoder
+        E_intermediate_dim: units in hidden layers of E autoencoder
         T_dropout: dropout probability for 
         E_gnoise_sd: gaussian noise std for E data
         E_dropout: dropout for E data
