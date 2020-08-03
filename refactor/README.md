@@ -4,6 +4,8 @@
 **Abstract**
 >Consistent identification of neurons and neuronal cell types across different observation modalities is an important problem in neuroscience. Here, we present an optimization framework to learn coordinated representations of multimodal data, and apply it to a large Patch-seq dataset of mouse cortical interneurons. Our approach reveals strong alignment between transcriptomic and electrophysiological profiles of neurons, enables accurate cross-modal data prediction, and identifies cell types that are consistent across modalities.
 
+A version that can be executed on the cloud is hosted on [Code Ocean](https://codeocean.com/capsule/6320801/tree/v1). 
+
 **Data**
  - [Allen Institute Patch-seq dataset](https://portal.brain-map.org/explore/classes/multimodal-characterization)
  - `/data/proc/`: contains processed data used as starting point for analyses in the manuscript
