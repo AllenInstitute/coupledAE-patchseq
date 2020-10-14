@@ -21,21 +21,17 @@
 #       "--exp_name TEST"
 
 import argparse
+import csv
 import os
 import pdb
-import re
-import socket
-import sys
-import timeit
-import time
 
 import numpy as np
 import scipy.io as sio
 import tensorflow as tf
-from data_funcs import TE_get_splits_45,TE_get_splits_5
-from ae_model_def import Model_TE_aug_decoders
-import csv
 from timebudget import timebudget
+
+from ae_model_def import Model_TE_aug_decoders
+from data_funcs import TE_get_splits_5, TE_get_splits_45
 
 parser = argparse.ArgumentParser()
 
@@ -113,7 +109,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     
     dir_pth = set_paths(exp_name=exp_name)
 
-    #Augmenting only hurts of networks are not coupled.
+    #Augmenting only hurts if networks are not coupled.
     if lambda_TE==0.0:
         augment_decoders=0
 
@@ -131,7 +127,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
         '_ri_' + str(run_iter)
     fileid = fileid.replace('.', '-')
 
-    #Convert to boolean
+    #Convert int to boolean
     augment_decoders=augment_decoders>0
 
     if Edat == 'pc':
