@@ -79,8 +79,9 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
 
     fileid = model_id + \
         '_bs_' + str(batchsize) + \
-        '_se_' + str(n_steps_per_epoch) +\
+        '_se_' + str(n_steps_per_epoch) + \
         '_ne_' + str(n_epochs) + \
+        '_ld_' + str(latent_dim) + \
         '_cv_' + str(cvfold) + \
         '_ri_' + str(run_iter)
     fileid = fileid.replace('.', '-')
