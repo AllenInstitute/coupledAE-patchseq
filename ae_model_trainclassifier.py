@@ -1,7 +1,3 @@
-import os
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID" 
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
-
 import argparse
 import tensorflow as tf
 from ae_model_def import Model_E_classifier
