@@ -222,11 +222,12 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',fiton='ttype',
                 save_results(this_model=model,Data=D,fname=dir_pth['checkpoint']+fileid+'_ckptep_'+str(epoch)+'-summary.mat')
                 
             if (val_acc>best_val_acc) and (epoch>20):
-                #Save best accuracy model weights
-                model.save_weights(dir_pth['result']+fileid+'-weights.h5')
-
+                #Update best accuracy value
+                best_val_acc = val_acc
                 #Save reconstructions and results for the full dataset:
-                save_results(this_model=model,Data=D,fname=dir_pth['result']+fileid+'-summary.mat')
+                print(f'saving model and weights for acc = {best_val_acc:0.5f} at epoch {epoch:04d}')
+                model.save_weights(dir_pth['result']+'best_'+fileid+'-weights.h5')
+                save_results(this_model=model,Data=D,fname=dir_pth['result']+'best_'+fileid+'-summary.mat')
     return
 
 if __name__ == "__main__":
