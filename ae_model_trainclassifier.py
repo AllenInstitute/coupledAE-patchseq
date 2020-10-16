@@ -19,6 +19,7 @@ parser.add_argument("--ckpt_save_freq",    default=500,                     type
 parser.add_argument("--run_iter",          default=0,                       type=int,     help="Run-specific id")
 parser.add_argument("--model_id",          default='v1',                    type=str,     help="Model-specific id")
 parser.add_argument("--exp_name",          default='E_classifier',          type=str,     help="Experiment set")
+parser.add_argument("--fiton",             default='ttype',                 type=str,     help='consensus' or 'ttype')
 
 
 def set_paths(exp_name='TEMP'):
@@ -71,13 +72,14 @@ class Datagen():
         else:
             raise StopIteration
 
-def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
+def main(batchsize=200, cvfold=0, Edat = 'pcifpx',fiton='ttype',
          latent_dim=3,n_epochs=1000, n_steps_per_epoch=500, ckpt_save_freq=500,
          run_iter=0, model_id='E_class_v1', exp_name='E_classifier'):
     
     dir_pth = set_paths(exp_name=exp_name)
 
     fileid = model_id + \
+        '_gt_' + str(fiton) + \
         '_bs_' + str(batchsize) + \
         '_se_' + str(n_steps_per_epoch) + \
         '_ne_' + str(n_epochs) + \
@@ -96,7 +98,13 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
 
     Partitions = {'train_ind':train_ind,'val_ind':val_ind,'test_ind':test_ind}
 
-    
+    if fiton=='consensus':
+        L = sio.loadmat(dir_pth['data']+'consensus_cluster.mat',squeeze_me=True)
+        D['cluster'] = L['consensus_cluster']
+        D['cluster_id'] = L['consensus_cluster_id']
+    elif fiton=='ttype':
+        pass
+
     sorted_labels = sorted(list(set(zip(D['cluster'],D['cluster_id']))), key=lambda x: x[1])
     sorted_labels = [l[0] for l in sorted_labels]
     mlb = MultiLabelBinarizer(classes=sorted_labels)
@@ -104,7 +112,6 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     pred = mlb.inverse_transform(D['E_cat'])
     pred = np.array([x[0] for x in pred])
     assert np.array_equal(pred,D['cluster']), 'Binarizer not working as expected'
-
 
     train_E_dat = D[Edat][train_ind,:]
     train_E_cat = D['E_cat'][train_ind,:].astype(float)
