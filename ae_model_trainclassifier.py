@@ -134,7 +134,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',fiton='ttype',
     optimizer_main = tf.keras.optimizers.Adam(learning_rate=1e-3)
     train_generator = tf.data.Dataset.from_generator(Datagen,output_types=(tf.float32, tf.float32),
                                                     args=(maxsteps,batchsize,train_E_dat,train_E_cat))
-    breakpoint()
+    
     model = Model_E_classifier(E_output_dim=train_E_dat.shape[1],
                             E_intermediate_dim=40,
                             E_gauss_noise_wt=1.0,
