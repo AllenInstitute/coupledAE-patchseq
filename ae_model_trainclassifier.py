@@ -136,12 +136,12 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',fiton='ttype',
                                                     args=(maxsteps,batchsize,train_E_dat,train_E_cat))
     
     model = Model_E_classifier(E_output_dim=train_E_dat.shape[1],
-                            E_intermediate_dim=40,
-                            E_gauss_noise_wt=1.0,
-                            E_gnoise_sd=0.05,
-                            E_dropout=0.1,
-                            latent_dim=latent_dim,
-                            n_labels=train_E_cat.shape[1])
+                                E_intermediate_dim=40,
+                                E_gauss_noise_wt=Edat_var,
+                                E_gnoise_sd=0.05,
+                                E_dropout=0.1,
+                                latent_dim=latent_dim,
+                                n_labels=train_E_cat.shape[1])
 
     #Model training functions 
     @tf.function
@@ -174,15 +174,16 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',fiton='ttype',
         log_values = [epoch, ce_loss, acc]
         return log_name, log_values
 
-    def save_results(this_model,Data,fname,Inds=Partitions,Edat=Edat,mlb=mlb):
-        all_E_dat = tf.constant(D[Edat],dtype=tf.float32)
-        all_E_cat = tf.constant(D['E_cat'],dtype=tf.float32)
-        zE, oH = model((all_E_dat, all_E_cat), training=False)
+    def save_results(this_model,fname,Data,Inds=Partitions,Edat=Edat,mlb=mlb):
+        all_E_dat = tf.constant(Data[Edat],dtype=tf.float32)
+        all_E_cat = tf.constant(Data['E_cat'],dtype=tf.float32)
+        zE, oH = this_model((all_E_dat, all_E_cat), train_E=False)
         oH = oH.numpy()
         bin_oH = (oH == np.max(oH,axis=1,keepdims=True)).astype(int)
         pred_E_cat = mlb.inverse_transform(bin_oH)
         pred_E_cat = np.array([x[0] for x in pred_E_cat])
-        acc = (np.sum(pred_E_cat==D['cluster'])/D['cluster'].size)*100
+        acc = (np.sum(pred_E_cat==Data['cluster'])/Data['cluster'].size)*100
+        print(f'Validation accuracy: {acc}')
         savemat = {'zE':zE.numpy(), 'pred_E_cat':pred_E_cat}
         savemat.update(Inds)
         sio.savemat(fname, savemat, do_compression=True)
@@ -208,7 +209,6 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',fiton='ttype',
 
             #Collect validation metrics
             _, val_pred = model((val_E_dat, val_E_cat), train_E=False)
-
             val_pred = val_pred.numpy()
             val_pred = (val_pred == np.max(val_pred,axis=1,keepdims=True)).astype(int)
             val_acc = (np.sum(np.multiply(val_pred,val_E_cat))/val_pred.shape[0])
@@ -225,15 +225,16 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',fiton='ttype',
                 #Save model weights
                 model.save_weights(dir_pth['checkpoint']+fileid+'_ckptep_'+str(epoch)+'-weights.h5')
                 #Save reconstructions and results for the full dataset:
-                save_results(this_model=model,Data=D,fname=dir_pth['checkpoint']+fileid+'_ckptep_'+str(epoch)+'-summary.mat')
+                save_results(this_model=model,Data=D.copy(),fname=dir_pth['checkpoint']+fileid+'_ckptep_'+str(epoch)+'-summary.mat')
                 
-            if (val_acc>best_val_acc) and (epoch>20):
+            if (val_acc>best_val_acc) and (epoch>10):
                 #Update best accuracy value
                 best_val_acc = val_acc
                 #Save reconstructions and results for the full dataset:
                 print(f'saving model and weights for acc = {best_val_acc:0.5f} at epoch {epoch:04d}')
                 model.save_weights(dir_pth['result']+'best_'+fileid+'-weights.h5')
-                save_results(this_model=model,Data=D,fname=dir_pth['result']+'best_'+fileid+'-summary.mat')
+                save_results(this_model=model,Data=D.copy(),fname=dir_pth['result']+'best_'+fileid+'-summary.mat', Edat=Edat, mlb=mlb)
+
     return
 
 if __name__ == "__main__":

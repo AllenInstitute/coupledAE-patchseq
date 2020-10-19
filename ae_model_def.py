@@ -424,7 +424,7 @@ class Model_E_classifier(tf.keras.Model):
         #process input
         XE = tf.where(tf.math.is_nan(inputs[0]),x=0.0,y=inputs[0]) #nans --> zeros
         cTrue = inputs[1]
-        
+
         #forward pass
         zE = self.encoder_E(XE,training=train_E)
         cPred = self.softmax_E(zE)
