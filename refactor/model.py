@@ -171,12 +171,9 @@ class Model_TE(tf.keras.Model):
         E_gnoise_sd: gaussian noise std for E data
         E_dropout: dropout for E data
         latent_dim: dim for representations
+        train_T: bool: set T encoder and decoder to training mode
+        train_E: bool: set T encoder and decoder to training mode
         name: TE
-
-    call Args:
-        train_T: augment T data
-        train_E: augment E data
-    
     """
 
     def __init__(self,
@@ -188,6 +185,8 @@ class Model_TE(tf.keras.Model):
                E_gnoise_sd=0.05,
                E_dropout=0.1,
                latent_dim=3,
+               train_T=True,
+               train_E=True,
                name='TE',
                **kwargs):
   
@@ -211,13 +210,17 @@ class Model_TE(tf.keras.Model):
                                    intermediate_dim=E_intermediate_dim,
                                    name='Decoder_E')
 
-    def call(self, inputs, train_T=True, train_E=True):
-        #T arm
-        zT = self.encoder_T(inputs[0],training=train_T)
-        zE = self.encoder_E(inputs[1],training=train_E)
+        self.train_T = train_T
+        self.train_E = train_E
 
-        XrT = self.decoder_T(zT,training=train_T)
-        XrE = self.decoder_E(zE,training=train_E)
+    def call(self, inputs):
+        #T arm
+        zT = self.encoder_T(inputs[0],training=self.train_T)
+        XrT = self.decoder_T(zT,training=self.train_T)
+        
+        #E arm
+        zE = self.encoder_E(inputs[1],training=self.train_E)
+        XrE = self.decoder_E(zE,training=self.train_E)
         return zT,zE,XrT,XrE
 
 
@@ -273,6 +276,9 @@ class Model_TE_aug_decoders(tf.keras.Model):
         E_gnoise_sd: gaussian noise std for E data
         E_dropout: dropout for E data
         latent_dim: dim for representations
+        train_T (bool): training/inference mode for E autoencoder
+        train_E (bool): training/inference mode for E autoencoder
+        augment_decoders (bool): augment decoder with cross modal representation if True
         name: TE
     """
     def __init__(self,
@@ -288,6 +294,9 @@ class Model_TE_aug_decoders(tf.keras.Model):
                E_gnoise_sd=0.05,
                E_dropout=0.1,
                latent_dim=3,
+               train_T=True,
+               train_E=True, 
+               augment_decoders=True,
                name='TE',
                **kwargs):
 
@@ -305,26 +314,24 @@ class Model_TE_aug_decoders(tf.keras.Model):
         
         self.decoder_T = Decoder_T(output_dim=T_dim, intermediate_dim=T_intermediate_dim, name='Decoder_T')
         self.decoder_E = Decoder_E(output_dim=E_dim, intermediate_dim=E_intermediate_dim, name='Decoder_E')
+
+        self.train_T = train_T
+        self.train_E = train_E
+        self.augment_decoders = augment_decoders
         return
 
 
-    def call(self, inputs, train_T=True, train_E=True, augment_decoders=True):
-        """
-        Args:
-            train_T: training/inference mode for T autoencoder
-            train_E: training/inference mode for E autoencoder
-            augment_decoders: augment decoder with cross modal representation if True
-        """
+    def call(self, inputs):
         #T arm forward pass
         XT = inputs[0]
-        zT = self.encoder_T(XT,training=train_T)
-        XrT = self.decoder_T(zT,training=train_T)
+        zT = self.encoder_T(XT,training=self.train_T)
+        XrT = self.decoder_T(zT,training=self.train_T)
         
         #E arm forward pass
         XE = tf.where(tf.math.is_nan(inputs[1]),x=0.0,y=inputs[1]) #Mask nans
         maskE = tf.where(tf.math.is_nan(inputs[1]),x=0.0,y=1.0)    #Get mask to ignore error contribution
-        zE = self.encoder_E(XE,training=train_E)
-        XrE = self.decoder_E(zE,training=train_E)
+        zE = self.encoder_E(XE,training=self.train_E)
+        XrE = self.decoder_E(zE,training=self.train_E)
 
         #Loss calculations
         mse_loss_T = tf.reduce_mean(tf.math.squared_difference(XT, XrT))
@@ -337,9 +344,11 @@ class Model_TE_aug_decoders(tf.keras.Model):
         self.add_loss(self.lambda_TE*cpl_loss_TE)
 
         #Cross modal reconstructions - treat zE and zT as constants for this purpose
-        if augment_decoders:
-            XrT_aug = self.decoder_T(tf.stop_gradient(zE),training=train_T)
-            XrE_aug = self.decoder_E(tf.stop_gradient(zT),training=train_E)
+        mse_loss_T_aug = 0
+        mse_loss_E_aug = 0
+        if self.augment_decoders:
+            XrT_aug = self.decoder_T(tf.stop_gradient(zE),training=self.train_T)
+            XrE_aug = self.decoder_E(tf.stop_gradient(zT),training=self.train_E)
             mse_loss_T_aug = tf.reduce_mean(tf.math.squared_difference(XT, XrT_aug))
             mse_loss_E_aug = tf.reduce_mean(tf.multiply(tf.math.squared_difference(XE, XrE_aug),maskE))
             self.add_loss(self.alpha_T*mse_loss_T_aug)
@@ -398,5 +407,5 @@ def custom_build(model,input_shape=None):
     """
     x = tf.constant(np.random.rand(1,input_shape[0]),dtype=tf.float32)
     y = tf.constant(np.random.rand(1,input_shape[1]),dtype=tf.float32)
-    _,_,_,_ = model((x,y),train_T=False,train_E=False)
+    _,_,_,_ = model((x,y))
     return model
