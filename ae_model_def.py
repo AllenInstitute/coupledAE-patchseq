@@ -381,6 +381,47 @@ def min_var_loss(zi, zj, Wij=None):
     return loss_ij
 
 
+class Encoder_E_classifier(keras.layers.Layer):
+    """
+    Decoder for electrophysiology data
+    
+    Args:
+        gaussian_noise_sd: std of gaussian noise injection if training=True
+        dropout_rate: dropout probability if training=True
+        latent_dim: representation dimenionality
+        intermediate_dim: number of units in hidden layers
+    """
+
+    def __init__(self,
+                 gaussian_noise_sd=0.05,
+                 dropout_rate=0.1,
+                 latent_dim=3,
+                 intermediate_dim=40,
+                 name='Encoder_E',
+                 dtype=tf.float32,
+                 **kwargs):
+        
+        super(Encoder_E_classifier, self).__init__(name=name, **kwargs)
+        self.gnoise = WeightedGaussianNoise(stddev=gaussian_noise_sd)
+        self.drp = keras.layers.Dropout(rate=dropout_rate)
+        self.fc0 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc0', kernel_regularizer=tf.keras.regularizers.l2(0.1))
+        self.fc1 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc1', kernel_regularizer=tf.keras.regularizers.l2(0.1))
+        self.fc2 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc2', kernel_regularizer=tf.keras.regularizers.l2(0.1))
+        self.fc3 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc3')
+        self.fc4 = keras.layers.Dense(latent_dim, activation='linear',use_bias=False, name=name+'fc4')
+        self.bn = keras.layers.BatchNormalization(scale=False, center=False, epsilon=1e-10, momentum=0.05, name=name+'BN')
+        return
+
+    def call(self, inputs, training=True):
+        x = self.gnoise(inputs, training=training)
+        x = self.drp(x, training=training)
+        x = self.fc0(x, training=training)
+        x = self.fc1(x, training=training)
+        x = self.fc2(x, training=training)
+        x = self.fc3(x, training=training)
+        x = self.fc4(x, training=training)
+        z = self.bn(x, training=training)
+        return z
 
 class Model_E_classifier(tf.keras.Model):
     """E Encoder for classification
@@ -407,7 +448,7 @@ class Model_E_classifier(tf.keras.Model):
         super(Model_E_classifier, self).__init__(name=name,**kwargs)
         self.n_labels = n_labels
         E_gnoise_sd_weighted = E_gauss_noise_wt*E_gnoise_sd
-        self.encoder_E = Encoder_E(gaussian_noise_sd=E_gnoise_sd_weighted,
+        self.encoder_E = Encoder_E_classifier(gaussian_noise_sd=E_gnoise_sd_weighted,
                                    dropout_rate=E_dropout,
                                    latent_dim=latent_dim,
                                    intermediate_dim=E_intermediate_dim,
@@ -415,23 +456,25 @@ class Model_E_classifier(tf.keras.Model):
         self.softmax_E = tf.keras.layers.Dense(n_labels, activation="softmax", name='predictions')
         self.cce = tf.keras.losses.CategoricalCrossentropy()
 
+
     def call(self, inputs, train_E=True):
         """
         Args:
-            inputs (tuple): inputs[0] is the feature matrix inputs[1] is the categorical variable encoded as an integer
+            inputs (tuple): inputs[0] is the feature vector, inputs[1] is the one-hot label, inputs[2] is the sample weight
             train_E: training/inference mode for E autoencoder
         """
         #process input
         XE = tf.where(tf.math.is_nan(inputs[0]),x=0.0,y=inputs[0]) #nans --> zeros
         cTrue = inputs[1]
+        sample_weights = inputs[2]
 
         #forward pass
         zE = self.encoder_E(XE,training=train_E)
         cPred = self.softmax_E(zE)
 
         #calculate loss
-        ce_loss = self.cce(cPred, cTrue)
-
+        ce_loss = self.cce(cPred, cTrue, sample_weight=sample_weights)
+        
         #append to keras model for gradient calculations
         self.add_loss(ce_loss)
 

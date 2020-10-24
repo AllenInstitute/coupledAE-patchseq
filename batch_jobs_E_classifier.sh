@@ -1,6 +1,6 @@
 for ld in 3 5 10
 do
-    for cv in {0..44}
+    for cv in {0..10}
     do
         jobid="E_ld_"$ld"_cv_"$cv
         echo '#!/bin/bash'>subjob.bash
@@ -14,9 +14,8 @@ do
         echo '#PBS -j oe'>>subjob.bash
         echo 'cd /allen/programs/celltypes/workgroups/mousecelltypes/Rohan/code/Patchseq-bioarxiv/'>>subjob.bash
         echo 'source activate tf21-cpu'>>subjob.bash
-        echo 'python -m ae_model_trainclassifier --cvfold '$cv' --fiton ttype --latent_dim '$ld' --model_id v1 --exp_name E_classifiers'>>subjob.bash
-        echo 'python -m ae_model_trainclassifier --cvfold '$cv' --fiton ttype33 --latent_dim '$ld' --model_id v1 --exp_name E_classifiers'>>subjob.bash
-        echo 'python -m ae_model_trainclassifier --cvfold '$cv' --fiton consensus --latent_dim '$ld' --model_id v1 --exp_name E_classifiers'>>subjob.bash
+        echo 'python -m ae_model_trainclassifier --cvfold '$cv' --fiton ttype33     --stratify_by ttype33     --latent_dim '$ld' --model_id v2 --exp_name E_classifiers_v2'>>subjob.bash
+        echo 'python -m ae_model_trainclassifier --cvfold '$cv' --fiton consensus33 --stratify_by consensus33 --latent_dim '$ld' --model_id v2 --exp_name E_classifiers_v2'>>subjob.bash
         echo '...'
         sleep 1
         wait
