@@ -1,10 +1,7 @@
-import os
 from copy import deepcopy
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 
 
 class Node():
@@ -45,7 +42,7 @@ def get_valid_classifications(current_node_list,C_list,P_list,valid_classes):
         current_node_list: list of all Node objects. Initialize as a list with only the root Node.
         valid_classes: Stores combinations of all valid partitions
     """
-    
+
     current_node_list.sort(key=lambda x: x.name)
     valid_classes.append(sorted([node.name for node in current_node_list]))
     for node in current_node_list:
@@ -67,7 +64,7 @@ class HTree():
         htree_df: pandas dataframe of hierarchical tree
         htree_file: full path to the `.csv` specification
     """
-    
+
     def __init__(self,htree_df=None,htree_file=None):
         
         #Load and rename columns from filename
@@ -85,12 +82,12 @@ class HTree():
             #Sorting for convenience
             htree_df = htree_df.sort_values(by=['y', 'x'], axis=0, ascending=[True, True]).copy(deep=True)
             htree_df = htree_df.reset_index(drop=True).copy(deep=True)
-        
+
         #Set class attributes using dataframe columns
         for c in htree_df.columns:
             setattr(self, c, htree_df[c].values)
         return
-    
+
     def obj2df(self):
         """
         Convert HTree object to a pandas dataframe
@@ -170,7 +167,7 @@ class HTree():
             plt.tight_layout()
             fig.subplots_adjust(bottom=0.2)
         return
-    
+
     def plotnodes(self,nodelist,fig=None):
         ind = np.isin(self.child,nodelist)
         plt.plot(self.x[ind], self.y[ind],'s',color='r')
@@ -205,7 +202,7 @@ class HTree():
         Returns: 
             descendant_dict (dict)
         """
-        
+
         descendant_dict = {}
         for key in np.unique(np.concatenate([self.child,self.parent])):
             descendant_dict[key]=self.get_descendants(node=key,leafonly=leafonly)
@@ -217,7 +214,7 @@ class HTree():
         Args:
             node (str): input node name
             rootnode (str): only calculate ancestors till this ancestor if specified.  
-        
+
         Returns:
             ancestors (list): list of ancestor names
         """
@@ -245,7 +242,7 @@ class HTree():
                 y.extend(self.y[self.child==label])
             else:
                 y.extend([np.max(self.y)+0.1])
-        
+
         #Lowest value is merged first
         ind = np.argsort(y)
         ordered_merge_parents = ordered_merge_parents[ind].tolist()
@@ -267,11 +264,9 @@ class HTree():
             HTree object
         """
         subtree_node_list = self.get_descendants(node=node)+[node]
-        if len(subtree_node_list)>1:
-            subtree_df = self.obj2df()
-            subtree_df = subtree_df[subtree_df['child'].isin(subtree_node_list)]
-        else:
-            print('Node not found in current tree')
+        assert len(subtree_node_list)>1, 'Node not found in current tree'
+        subtree_df = self.obj2df()
+        subtree_df = subtree_df[subtree_df['child'].isin(subtree_node_list)]
         return HTree(htree_df=subtree_df)
 
     def update_layout(self):
@@ -287,7 +282,6 @@ class HTree():
             self.x[self.child==this_child]=new_x
             new_x = new_x+1
             
-            
         parents = self.child[~self.isleaf].tolist() 
         for node in parents:
             descendant_leaf_nodes = self.get_descendants(node=node,leafonly=True)
@@ -300,12 +294,12 @@ class HTree():
 def do_merges(labels, list_changes=[], n_merges=0, verbose=False):
     """Perform `n_merges` on an array of labels using the list of changes at each merge. 
     If labels are leaf node labels, then the do_merges() gives successive horizontal cuts of the hierarchical tree.
-    
+
     Args:
         labels: label array to update
         list_changes: output of Htree.get_mergeseq()
         n_merges: int, can be at most len(list_changes)
-    
+
     Returns:
         labels: array of updated labels. Same size as input, non-unique entries are allowed.
     """
@@ -338,7 +332,6 @@ def simplify_tree(pruned_subtree,skip_nodes=None):
         simple_tree (HTree): simplified hierarchical tree.
         skip_nodes: copy of the input, or calculated values. 
     """
-    
     simple_tree = deepcopy(pruned_subtree)
     if skip_nodes is None:
         X = pd.Series(pruned_subtree.parent).value_counts().to_frame()
@@ -360,11 +353,11 @@ def simplify_tree(pruned_subtree,skip_nodes=None):
 
             #Reinitialize tree from the dataframe
             simple_tree=HTree(htree_df=simple_tree_df)
-        
+
     return simple_tree,skip_nodes
 
 
-def get_merged_ordered_classes(data_labels, htree_file='../data/proc/dend_RData_Tree_20181220.csv', n_required_classes=30):
+def get_merged_ordered_classes(data_labels, htree_file='../data/proc/dend_RData_Tree_20181220.csv', n_required_classes=30, verbose=True):
     """Provide merged labels based on the hierarchical tree.
     Exits when number of labels in the data equals or is just above `n_required_classes`.
 
@@ -372,6 +365,7 @@ def get_merged_ordered_classes(data_labels, htree_file='../data/proc/dend_RData_
         data_labels: np.array of cell type labels
         htree_file (str): path to reference hierarchy .csv file 
         n_required_classes (int): Number of unique labels
+        verbose (bool): print number of merges and number of returned classes
 
     Returns:
         new_data_labels: cell type labels merged as per the reference hierarchy
@@ -392,11 +386,11 @@ def get_merged_ordered_classes(data_labels, htree_file='../data/proc/dend_RData_
         n_remain_classes = np.unique(merged_sample_labels).size
 
     if n_remain_classes != n_required_classes:
-        print('WARNING: Merges for required number of classes not found. Returning a higher number of classes')
+        if verbose: print('WARNING: Merges for required number of classes not found. Returning a higher number of classes')
         n = n-1
 
     new_data_labels = do_merges(labels=data_labels, list_changes=L, n_merges=n, verbose=False)
-    print('Performed {:d} merges. Remaining classes in data = {:d}'.format(n, np.unique(new_data_labels).size))
+    if verbose: print('Performed {:d} merges. Remaining classes in data = {:d}'.format(n, np.unique(new_data_labels).size))
     assert np.all(np.isin(np.unique(new_data_labels), subtree.child)), "Merged labels are not listed as children in tree"
 
     ind = np.isin(subtree.child, np.unique(new_data_labels))
