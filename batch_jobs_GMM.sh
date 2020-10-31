@@ -20,6 +20,7 @@ do
                         ' --exp_name gmm_model' \
                         ' --cvfold '$cv \
                         ' --perc 100'\
+                        ' --modeltype cplae'\
                         ' --min_component '$minn >>subjob.bash
         echo '...'
         sleep 0.1
