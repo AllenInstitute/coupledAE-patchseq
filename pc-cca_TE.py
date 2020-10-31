@@ -25,7 +25,8 @@ def set_paths(exp_name='TEMP'):
         base_path = '/Users/fruity/Dropbox/AllenInstitute/CellTypes/'
         dir_pth['data'] = base_path + 'dat/raw/patchseq-v4/'
     elif '/home/rohan' in curr_path:
-        base_path = '/home/rohan/Dropbox/AllenInstitute/CellTypes/'
+        #base_path = '/home/rohan/Dropbox/AllenInstitute/CellTypes/'
+        base_path = '/home/rohan/Remote-AI/'
         dir_pth['data'] = base_path + 'dat/raw/patchseq-v4/'
     elif '/allen' in curr_path:
         base_path = '/allen/programs/celltypes/workgroups/mousecelltypes/Rohan/'
@@ -81,8 +82,8 @@ def main(cvfold=0, Edat='pcipfx', pc_dim_T=20, pc_dim_E=20, cca_dim=3, model_id=
 
     #Cross modality reconstruction
     XrTpc_from_zE, XrEpc_from_zT = cca.inverse_transform_xy(zEcca,zTcca)
-    XrE_from_XT = pcaT.inverse_transform(XrTpc_from_zE)
-    XrT_from_XE = pcaE.inverse_transform(XrEpc_from_zT)
+    XrT_from_XE = pcaT.inverse_transform(XrTpc_from_zE)
+    XrE_from_XT = pcaE.inverse_transform(XrEpc_from_zT)
 
     savemat = {'zT': zTcca,
                'zE': zEcca,

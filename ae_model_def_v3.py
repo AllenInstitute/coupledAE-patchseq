@@ -359,16 +359,16 @@ class Model_TE_aug_decoders(tf.keras.Model):
         return zT,zE,XrT,XrE
 
 
-    def buildme(self):
+    def buildme(model):
         """
         Initialize the model using this if loading saved weights. 
         """
-        x = tf.constant(np.random.rand(1, self.T_dim), dtype=tf.float32)
-        y = tf.constant(np.random.rand(1, self.E_dim), dtype=tf.float32)
-        self.train_E = False
-        self.train_T = False
-        _, _, _, _ = self.call((x, y))
-        return
+        x = tf.constant(np.random.rand(1, model.T_dim), dtype=tf.float32)
+        y = tf.constant(np.random.rand(1, model.E_dim), dtype=tf.float32)
+        model.train_E = False
+        model.train_T = False
+        _, _, _, _ = model((x, y))
+        return model
 
 
 def min_var_loss(zi, zj, Wij=None):
@@ -446,6 +446,7 @@ class Encoder_E_classifier(keras.layers.Layer):
         x = self.fc4(x, training=training)
         z = self.bn(x, training=training)
         return z
+
 
 class Model_E_classifier(tf.keras.Model):
     """E Encoder for classification

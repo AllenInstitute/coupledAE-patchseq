@@ -1,5 +1,4 @@
-cv=0
-for ri in {0..20}
+for cv in {0..20}
 do
     for minn in {10..45..1}
     do
@@ -17,18 +16,13 @@ do
         echo 'cd /allen/programs/celltypes/workgroups/mousecelltypes/Rohan/code/Patchseq-bioarxiv/'>>subjob.bash
         echo 'source activate tf21-cpu'>>subjob.bash
         echo 'python -m analysis_denovo_script' \
-                        ' --representation_pth TE_NM_cc' \
-                        ' --exp_name gmm_model_select_cv_0' \
+                        ' --representation_pth TE_CS' \
+                        ' --exp_name gmm_model' \
                         ' --cvfold '$cv \
-                        ' --alpha_T 1.0'\
-                        ' --alpha_E 1.0'\
-                        ' --lambda_TE 1.0'\
-                        ' --augmented_decoders 1'\
-                        ' --run_iter '$ri \
                         ' --perc 100'\
                         ' --min_component '$minn >>subjob.bash
         echo '...'
-        sleep 0.2
+        sleep 0.1
         wait
         qsub subjob.bash
         echo 'Job: '${jobid//./-}' '
