@@ -5,7 +5,7 @@ import seaborn as sns
 sns.set(style='white')
 
 
-def matrix_scatterplot(M, xticklabels, yticklabels, xlabel='', ylabel='', mc='dodgerblue', fig_width=10, fig_height=14, scale_factor=10.0):
+def matrix_scatterplot(M, xticklabels, yticklabels, xlabel='', ylabel='', mc='dodgerblue', fig_width=10, fig_height=14, scale_factor=10.0, **kwargs):
     """Plots a matrix with points as in a scatterplot. Area of points proportional to each matrix element. 
     Suitable to show sparse matrices.
 
@@ -56,4 +56,4 @@ def matrix_scatterplot(M, xticklabels, yticklabels, xlabel='', ylabel='', mc='do
     plt.box(False)
     plt.tight_layout()
     #plt.show()
-    return
+    return ax

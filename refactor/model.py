@@ -1,5 +1,3 @@
-import pdb
-
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -23,7 +21,6 @@ class Encoder_T(keras.layers.Layer):
                  latent_dim=3,
                  intermediate_dim=50,
                  name='Encoder_T',
-                 dtype=tf.float32,
                  **kwargs):
 
         super(Encoder_T, self).__init__(name=name, **kwargs)
@@ -32,7 +29,7 @@ class Encoder_T(keras.layers.Layer):
         self.fc1 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc1')
         self.fc2 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc2')
         self.fc3 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc3')
-        self.fc4 = keras.layers.Dense(latent_dim, activation='linear', name=name+'fc4')
+        self.fc4 = keras.layers.Dense(latent_dim, use_bias=False, activation='linear', name=name+'fc4')
         self.bn = keras.layers.BatchNormalization(scale=False, center=False, epsilon=1e-10, momentum=0.05, name=name+'BN')
         return
 
@@ -60,7 +57,6 @@ class Decoder_T(keras.layers.Layer):
                  output_dim,
                  intermediate_dim=50,
                  name='Decoder_T',
-                 dtype=tf.float32,
                  **kwargs):
         
         super(Decoder_T, self).__init__(name=name, **kwargs)
@@ -82,7 +78,7 @@ class Decoder_T(keras.layers.Layer):
 
 class Encoder_E(keras.layers.Layer):
     """
-    Decoder for electrophysiology data
+    Encoder for electrophysiology data
     
     Args:
         gaussian_noise_sd: std of gaussian noise injection if training=True
@@ -107,7 +103,7 @@ class Encoder_E(keras.layers.Layer):
         self.fc1 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc1')
         self.fc2 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc2')
         self.fc3 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc3')
-        self.fc4 = keras.layers.Dense(latent_dim, activation='linear', name=name+'fc4')
+        self.fc4 = keras.layers.Dense(latent_dim, use_bias=False, activation='linear', name=name+'fc4')
         self.bn = keras.layers.BatchNormalization(scale=False, center=False, epsilon=1e-10, momentum=0.05, name=name+'BN')
         return
 
@@ -124,7 +120,7 @@ class Encoder_E(keras.layers.Layer):
 
 class Decoder_E(keras.layers.Layer):
     """
-    Initializes the Encoder for electrophysiology data.
+    Decoder for electrophysiology data
 
     Args:
         output_dim: Should be same as input dim if using as an autoencoder
