@@ -1,11 +1,10 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.python.keras.layers import Dense, BatchNormalization, Dropout, Layer
-from tensorflow.python.keras import regularizers
-from tensorflow.python.keras.losses import CategoricalCrossentropy
 from tensorflow.python.keras import Model
 from tensorflow.python.keras import backend as K
+from tensorflow.python.keras import regularizers
+from tensorflow.python.keras.layers import (BatchNormalization, Dense, Dropout,Layer)
+from tensorflow.python.keras.losses import CategoricalCrossentropy
 from tensorflow.python.keras.utils import tf_utils
 from tensorflow.python.ops import array_ops
 
@@ -82,7 +81,7 @@ class Decoder_T(Layer):
 
 class Encoder_E(Layer):
     """
-    Decoder for electrophysiology data
+    Encoder for electrophysiology data
     
     Args:
         gaussian_noise_sd: std of gaussian noise injection if training=True
@@ -124,7 +123,7 @@ class Encoder_E(Layer):
 
 class Decoder_E(Layer):
     """
-    Initializes the Encoder for electrophysiology data.
+    Decoder for electrophysiology data
 
     Args:
         output_dim: Should be same as input dim if using as an autoencoder
@@ -160,13 +159,13 @@ class Decoder_E(Layer):
 
 class Model_TE(Model):
     """
-    Coupled autoencoder
+    Coupled autoencoder model (no augmentation for cross modal reconstructions)
 
     Args:
-        T_output_dim: n(genes)
-        E_output_dim: n(features)
+        T_dim: n(genes)
+        E_dim: n(features)
         T_intermediate_dim: units in hidden layers of T autoencoder
-        E_intermediate_dim: units in hidden layers of T autoencoder
+        E_intermediate_dim: units in hidden layers of E autoencoder
         T_dropout: dropout probability for 
         E_gnoise_sd: gaussian noise std for E data
         E_dropout: dropout for E data
@@ -177,8 +176,8 @@ class Model_TE(Model):
     """
 
     def __init__(self,
-               T_output_dim,
-               E_output_dim,
+               T_dim,
+               E_dim,
                T_intermediate_dim=50,
                E_intermediate_dim=40,
                T_dropout=0.5,
@@ -202,26 +201,26 @@ class Model_TE(Model):
                                    intermediate_dim=E_intermediate_dim,
                                    name='Encoder_E')
 
-        self.decoder_T = Decoder_T(output_dim=T_output_dim,
+        self.decoder_T = Decoder_T(output_dim=T_dim,
                                    intermediate_dim=T_intermediate_dim,
                                    name='Decoder_T')
 
-        self.decoder_E = Decoder_E(output_dim=E_output_dim,
+        self.decoder_E = Decoder_E(output_dim=E_dim,
                                    intermediate_dim=E_intermediate_dim,
                                    name='Decoder_E')
+
         self.train_T = train_T
         self.train_E = train_E
 
     def call(self, inputs):
         #T arm
-        zT = self.encoder_T(inputs[0],training=self.train_T)
-        XrT = self.decoder_T(zT,training=self.train_T)
-        
+        zT = self.encoder_T(inputs[0], training=self.train_T)
+        XrT = self.decoder_T(zT, training=self.train_T)
 
         #E arm
-        zE = self.encoder_E(inputs[1],training=self.train_E)
-        XrE = self.decoder_E(zE,training=self.train_E)
-        return zT,zE,XrT,XrE
+        zE = self.encoder_E(inputs[1], training=self.train_E)
+        XrE = self.decoder_E(zE, training=self.train_E)
+        return zT, zE, XrT, XrE
 
 
 class WeightedGaussianNoise(Layer):
@@ -453,7 +452,7 @@ class Encoder_E_classifier(Layer):
 
 
 class Model_E_classifier(Model):
-    """E model for classification
+    """Model to classify electrophysiological profiles into transcriptomic taxonomy classes.
 
     Args:
         E_output_dim: Number of features in E data
