@@ -1,13 +1,8 @@
 #Model updated for TF2.0
 #python -m ae_model_train --batchsize 100 --cvfold 0 --alpha_T 1.0 --alpha_E 1.0 --alpha_M 1.0 --lambda_TE 0.0 --latent_dim 3 --n_epochs 10 --n_steps_per_epoch 500 --ckpt_save_freq 2 --n_finetuning_steps 10 --run_iter 0 --model_id 'v1' --exp_name 'TE_Patchseq_Bioarxiv'
-import argparse
 import os
 import pdb
-import re
-import socket
-import sys
-import timeit
-import time
+import argparse
 
 import numpy as np
 import scipy.io as sio

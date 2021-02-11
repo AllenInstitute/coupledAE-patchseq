@@ -102,7 +102,7 @@ def load_summary_files(data_type='NM_cc',key_list = ['XrE','XrT','zE','zT','trai
                         gmm = pickle.load(fid)
                         X['ccT_lbl'] = gmm.predict(X['zT'])
                         X['ccE_lbl'] = gmm.predict(X['zE'])
-                        t_lbl,e_lbl = relabel_gmm_clusters(X=X,O=O.copy(),best_n_components=best_n_components)
+                        t_lbl,e_lbl = relabel_gmm_clusters(X=X,datadict=O.copy(),best_n_components=best_n_components)
                         CVdict[fold]['ccT_lbl_matched'],CVdict[fold]['ccE_lbl_matched']=t_lbl,e_lbl
                 del X
 

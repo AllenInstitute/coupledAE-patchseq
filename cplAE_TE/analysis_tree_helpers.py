@@ -98,7 +98,7 @@ class HTree():
         if skeletononly==False:
             if txtleafonly==False:
                 for i, label in enumerate(self.child):
-                        plt.text(self.x[i], self.y[i], label, 
+                        t = plt.text(self.x[i], self.y[i], label, 
                                 color=self.col[i],
                                 horizontalalignment='center',
                                 verticalalignment='top', 
@@ -113,6 +113,7 @@ class HTree():
                             verticalalignment='top', 
                             rotation=90, 
                             fontsize=fontsize)
+                    #t.set_bbox(dict(facecolor=self.col[i], edgecolor='w'))
 
         for parent in np.unique(self.parent):
             #Get position of the parent node:

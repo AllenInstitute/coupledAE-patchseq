@@ -1,10 +1,7 @@
 import numpy as np
-import scipy.io as sio
-import feather
 import pandas as pd
-import timeit
+import scipy.io as sio
 from sklearn.model_selection import StratifiedKFold
-import pdb
 
 def create_color_ref(ps_Tcat_ann):
     '''Used to generate `cluster_colors` from the FACS reference dataset. Unused function, for record keeping only.'''

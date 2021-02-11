@@ -22,13 +22,9 @@
 
 import argparse
 import csv
-import os
-import pdb
-
 import numpy as np
 import scipy.io as sio
 import tensorflow as tf
-from timebudget import timebudget
 
 from ae_model_def import Model_TE_aug_decoders
 from data_funcs import TE_get_splits_5, TE_get_splits_45
@@ -228,7 +224,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     def save_results(this_model,Data,fname,Inds=Partitions,Edat=Edat):
         all_T_dat = tf.constant(Data['T_dat'])
         all_E_dat = tf.constant(Data[Edat])
-        zT, zE, XrT, XrE = this_model((all_T_dat, all_E_dat), training=False)
+        zT, zE, XrT, XrE = this_model((all_T_dat, all_E_dat), train_T=False, train_E=False)
         XrE_from_XT = this_model.decoder_E(zT, training=False)
         XrT_from_XE = this_model.decoder_T(zE, training=False)
 
@@ -306,7 +302,7 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',
     model_TE.save_weights(dir_pth['result']+fileid+'_'+str(n_finetuning_steps)+'_ft-weights.h5')
 
     #Save reconstructions and results for the full dataset:
-    save_results(this_model=model_TE,Data=D,fname=dir_pth['result']+fileid+'_'+str(n_finetuning_steps)+'_ft-summary.mat')    
+    save_results(this_model=model_TE,Data=D,fname=dir_pth['result']+fileid+'_'+str(n_finetuning_steps)+'_ft-summary.mat')
     return
 
 if __name__ == "__main__":
