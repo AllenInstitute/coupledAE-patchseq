@@ -11,7 +11,7 @@ setuptools.setup(
     version="1.0",
     author="Rohan Gala",
     author_email="rhngla@gmail.com",
-    description="Coupled autoencoders for patchseq T and E",
+    description="Coupled autoencoders for patchseq T and E characterizations of mouse cortical interneurons",
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),
