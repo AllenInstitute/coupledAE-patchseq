@@ -1,6 +1,4 @@
-**[Consistent cross-modal identification of cortical neurons with coupled autoencoders](https://www.biorxiv.org/content/10.1101/2020.06.30.181065v2)**
-
-**Status**: Accepted for publication in [Nature Computational Science](https://www.nature.com/natcomputsci).
+**[Consistent cross-modal identification of cortical neurons with coupled autoencoders](https://www.nature.com/articles/s43588-021-00030-1)**
 
 ### Abstract
 
@@ -11,7 +9,7 @@ Consistent identification of neurons in different experimental modalities is a k
  - [Processed data used as input for coupled autoencoders](https://www.dropbox.com/s/nmhd3wzw4re9ve7/PS_v5_beta_0-4_pc_scaled_ipxf_eqTE.mat?dl=0)
 
 ### Code
-⚠️`Caution`: This repository is being refactored, and is expected to be ready by 1-March-2021`
+⚠️`Caution`: This repository is being refactored, and is expected to be ready by `1-March-2021`
 
-In the meanwhile, please refer to the executable version of coupled autoencoders and minimal examples hosted on [CodeOcean](https://codeocean.com/capsule/6320801)
+Please refer to the executable version of the code hosted on [CodeOcean](https://codeocean.com/capsule/6320801).
 
