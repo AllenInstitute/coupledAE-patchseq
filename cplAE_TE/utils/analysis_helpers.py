@@ -10,6 +10,7 @@ from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as QDA
 from sklearn.dummy import DummyClassifier
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import r2_score as r2
 
 
 def supervised_classification(Fold, representation_id='zT', n_classes_list=np.arange(5, 61, 5), verbose=False):
@@ -174,3 +175,45 @@ def pc_cca(XT, XE, train_ind, pc_dim_T, pc_dim_E, cca_dim):
     XrE_from_XT = pcaE.inverse_transform(XrEpc_from_zT)
 
     return zT_white, zE_white, XrT, XrE, XrT_from_XE, XrE_from_XT
+
+
+def reconstruction_metrics(XT, XE, Fold:dict, subset_list = ['train','val','test']):
+    """Calculates R2 and MSE for train/validation/test subsets for within- and cross-modal reconstructions. 
+
+    Args:
+        XT: transcriptomic data, cell x features
+        XE: electrophysiological data, cell x features
+        Fold (dict): Summary file, containing indices for different subsets, and within- and cross-modal reconstructions
+        subset_list (list, optional): Defaults to ['train','val','test']
+
+    Returns:
+        result_df: dataframe with results
+    """
+
+    XT = deepcopy(XT)
+    XE = deepcopy(XE)
+    result = {}
+
+    #Within-modality reconstructions
+    T_se = (XT - Fold['XrT'])**2
+    E_se = (XE - Fold['XrE'])**2
+    for subset in subset_list:
+        ind = Fold[subset+'_ind']
+        result['XT_from_XT_'+subset] = np.mean(T_se[ind, :])
+        result['XE_from_XE_'+subset] = np.nanmean(E_se[ind, :])
+        result['XT_from_XT_R2_'+subset] = r2(XT[ind, :], Fold['XrT'][ind, :])
+        result['XE_from_XE_R2_'+subset] = r2(XE[ind, :], Fold['XrE'][ind, :])
+
+    #Cross-modality reconstructions
+    T_se = (XT - Fold['XrT_from_XE'])**2
+    E_se = (XE - Fold['XrE_from_XT'])**2
+    for subset in subset_list:
+        ind = Fold[subset+'_ind']
+        result['XT_from_XE_'+subset] = np.mean(T_se[ind, :])
+        result['XE_from_XT_'+subset] = np.nanmean(E_se[ind, :])
+        result['XT_from_XE_R2_'+subset] = r2(XT[ind, :], Fold['XrT_from_XE'][ind, :])
+        result['XE_from_XT_R2_'+subset] = r2(XE[ind, :], Fold['XrE_from_XT'][ind, :])
+
+    #Pass index=[0] because only one row is expected.
+    result_df = pd.DataFrame(result,index=[0])
+    return result_df
