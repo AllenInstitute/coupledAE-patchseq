@@ -32,12 +32,13 @@ def get_paths(warn=True, write_toml=False):
             print(f'File not found: {path[f]}')
 
     # Paths to data from different experiments
-    remote_path = Path("/home/rohan/Remote-AI/dat/")
-    path['exp_hparam'] = remote_path / "result/TE_NM/"
-    path['exp_hparam_log'] = remote_path / "result/TE_NM/logs/"
-    path['exp_kfold'] = remote_path / "result/TE_NM/"
-    path['exp_repeat_init'] = remote_path / "result/TE_NM_cc/"
-    path['exp_repeat_init_gmm'] = remote_path / "result/TE_NM_cc/gmm_model_select_cv_0/"
+    #remote_path = Path("/home/rohan/Remote-AI/dat/result")
+    remote_path = Path("/Users/fruity/Dropbox/AllenInstitute/CellTypes/dat/proc")
+    path['exp_hparam'] = remote_path / "TE_NM/"
+    path['exp_hparam_log'] = remote_path / "TE_NM/logs/"
+    path['exp_kfold'] = remote_path / "TE_NM/"
+    path['exp_repeat_init'] = remote_path / "TE_NM_cc/"
+    path['exp_repeat_init_gmm'] = remote_path / "TE_NM_cc/gmm_model_select_cv_0/"
     for f in ['exp_hparam', 'exp_hparam_log', 'exp_kfold', 'exp_repeat_init', 'exp_repeat_init_gmm']:
         if (not(path[f].is_dir()) and warn):
             print(f'Directory not found: {path[f]}')
@@ -145,7 +146,7 @@ def load_summary_files(data_type='NM_cc', key_list=['XrE', 'XrT', 'zE', 'zT', 't
 
     Args:
         data_type (str, optional): One of 'NM' ,'NM_cc', 'CS'.
-        key_list (list, optional): [description]. Defaults to ['XrE','XrT','zE','zT','train_ind','val_ind','test_ind'].
+        key_list (list, optional): [description]. Defaults to ['XrE','XrT','zE','zT','train_ind','val_ind','test_ind']. Also available ['XrT_from_XE', XrE_from_XT]
 
     Returns:
         CVdict: dictionary with each run as a key

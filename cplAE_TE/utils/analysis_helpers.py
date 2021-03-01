@@ -2,8 +2,11 @@ from copy import deepcopy
 
 import numpy as np
 import pandas as pd
+from cplAE_TE.utils.compute import CCA_extended
 from cplAE_TE.utils.load_helpers import get_paths, load_dataset
 from cplAE_TE.utils.tree_helpers import get_merged_ordered_classes
+from scipy.linalg import sqrtm
+from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as QDA
 from sklearn.dummy import DummyClassifier
 from sklearn.metrics import accuracy_score
@@ -106,3 +109,68 @@ def supervised_classification(Fold, representation_id='zT', n_classes_list=np.ar
 
     results_df = pd.DataFrame(results)
     return results_df
+
+
+def pc_cca(XT, XE, train_ind, pc_dim_T, pc_dim_E, cca_dim):
+    """Reduce dimensionality of XT and XE with PCA, and then obtained an co-ordinated representations with CCA.
+
+    Args:
+        XT: numpy arrays cells x features
+        XE: numpy arrays cells x features
+        train_ind: Principle components and canonical components are obtained with this set of cells. 
+        pc_dim_T (int): Numper of principle components for XT
+        pc_dim_E (int): Numper of principle components for XE
+        cca_dim (int): shared space dimensionality
+
+    Returns:
+        zT_white: zT is centered and transformed to have unit diagonal covariance (whitening transformation)
+        zE_white: zE is centered and transformed to have unit diagonal covariance (whitening transformation)
+        XrT
+        XrE
+        XrT_from_XE
+        XrE_from_XT
+    """
+
+    XT = deepcopy(XT)
+    XE = deepcopy(XE)
+
+    #Reduce dims of T data
+    if pc_dim_T is not None:
+        pcaT = PCA(n_components=pc_dim_T)
+        pcaT.fit_transform(XT[train_ind, :])
+        XTpc = pcaT.transform(XT)
+    else:
+        XTpc = XT
+
+    #Reduce dims of E data
+    if pc_dim_E is not None:
+        pcaE = PCA(n_components=pc_dim_E)
+        pcaE.fit_transform(XE[train_ind, :])
+        XEpc = pcaE.transform(XE)
+    else:
+        XEpc = XE
+
+    #CCA on T and E data
+    cca = CCA_extended(n_components=cca_dim, scale=True, max_iter=1e4, tol=1e-06, copy=True)
+    cca.fit(XTpc[train_ind, :], XEpc[train_ind, :])
+    zT, zE = cca.transform(XTpc, XEpc)
+
+    zT_white = zT - np.mean(zT, axis=0)
+    zT_white = np.matmul(zT_white, sqrtm(
+        np.linalg.inv(np.cov(np.transpose(zT_white)))))
+
+    zE_white = zE - np.mean(zE, axis=0)
+    zE_white = np.matmul(zE_white, sqrtm(
+        np.linalg.inv(np.cov(np.transpose(zE_white)))))
+
+    #Within modality reconstruction
+    XrTpc, XrEpc = cca.inverse_transform_xy(zT, zE)
+    XrT = pcaT.inverse_transform(XrTpc)
+    XrE = pcaE.inverse_transform(XrEpc)
+
+    #Cross modality reconstruction
+    XrTpc_from_zE, XrEpc_from_zT = cca.inverse_transform_xy(zE, zT)
+    XrT_from_XE = pcaT.inverse_transform(XrTpc_from_zE)
+    XrE_from_XT = pcaE.inverse_transform(XrEpc_from_zT)
+
+    return zT_white, zE_white, XrT, XrE, XrT_from_XE, XrE_from_XT
