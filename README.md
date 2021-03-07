@@ -9,7 +9,6 @@ Consistent identification of neurons in different experimental modalities is a k
  - [Processed data used as input for coupled autoencoders](https://www.dropbox.com/s/nmhd3wzw4re9ve7/PS_v5_beta_0-4_pc_scaled_ipxf_eqTE.mat?dl=0)
 
 ### Code
-⚠️`Caution`: This repository is being refactored, and is expected to be ready by `1-March-2021`
+⚠️`Caution`: This repository is being refactored. In the meanwhile, please contact corresponding authors in case of specific questions. 
 
-Please refer to the executable version of the code hosted on [CodeOcean](https://codeocean.com/capsule/6320801).
-
+A minimal version of the code executable on a cloud enviroment is hosted on [CodeOcean](https://codeocean.com/capsule/6320801).
