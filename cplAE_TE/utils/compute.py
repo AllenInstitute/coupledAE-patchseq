@@ -62,9 +62,9 @@ def contingency_metric(X, verbose=True, factor=1):
         reliable_row_frac: rows for which the diagonal entry >= row maximum > 0
         reliable_col_frac: cols for which the diagonal entry >= row maximum > 0
         reliable_diag_frac: reliable_row_frac & reliable_col_frac
-        bad_diag
-        f_consistency
-        f_occupancy
+        unreliable_clusters: rows or cols are not reliable (see code for definition)
+        f_consistency: fraction of entries on the diagonal
+        f_occupancy: fraction of diagonal entries > 0
     """
     assert X.shape[0] == X.shape[1], 'X should be a square matrix'
 

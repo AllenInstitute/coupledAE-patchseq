@@ -21,11 +21,16 @@ def get_paths(warn=True, write_toml=False):
     """
     path = {}
     path['package'] = Path(__file__).parent.parent.parent.absolute()
+    
 
     # Input data
     path['proc_dataset'] = path['package'] / "data/proc/PS_v5_beta_0-4_pc_scaled_ipfx_eqTE.mat"
     path['proc_E_names'] = path['package'] / "data/proc/E_names.json"
     path['htree'] = path['package'] / "data/proc/dend_RData_Tree_20181220.csv"
+
+    path['proc_DE_gene_dict'] = path['package'] / "data/proc/DE_gene_dict.mat"
+    path['anno_33_class_ref_tax'] =path['package'] / "data/proc/anno_33_class_ref_tax.mat"
+    path['anno_33_class_consensus'] =path['package'] / "data/proc/anno_33_class_consensus"
     #path['htree_pruned'] = path['package'] / "data/proc/dend_RData_Tree_20181220_pruned.csv"
     for f in ['proc_dataset', 'proc_E_names', 'htree']:
         if (not(path[f].is_file()) and warn):
@@ -39,6 +44,7 @@ def get_paths(warn=True, write_toml=False):
     path['exp_kfold'] = remote_path / "TE_NM/"
     path['exp_repeat_init'] = remote_path / "TE_NM_cc/"
     path['exp_repeat_init_gmm'] = remote_path / "TE_NM_cc/gmm_model_select_cv_0/"
+    
     for f in ['exp_hparam', 'exp_hparam_log', 'exp_kfold', 'exp_repeat_init', 'exp_repeat_init_gmm']:
         if (not(path[f].is_dir()) and warn):
             print(f'Directory not found: {path[f]}')
@@ -162,7 +168,7 @@ def load_summary_files(data_type='NM_cc', key_list=['XrE', 'XrT', 'zE', 'zT', 't
         lambda_TE = kwargs.get('lambda_TE', 1.0)
         aug = kwargs.get('aug', 1)
         fold_list = kwargs.get('fold_list', list(range(21)))
-        best_n_components = kwargs.get('best_n_components', 33)
+        n_components = kwargs.get('n_components', 33)
         load_gmm = kwargs.get('load_gmm', True)
         cv = 0
         
@@ -180,13 +186,12 @@ def load_summary_files(data_type='NM_cc', key_list=['XrE', 'XrT', 'zE', 'zT', 't
                 if load_gmm:  # Assign labels to unsupervised clusters.
                     #gmm.predict might fail if scikit-learn version is not the same (we used 0.22.2).
                     gmm_fname = (f'gmmfit_restricted_perc_100-0_aT_{alpha_T:.1f}_aE_{alpha_E:.1f}_cs_{lambda_TE:.1f}_' +
-                                 f'ad_1_cv_0_ri_{fold:d}_ld_3_ne_1500_fiton_zT_n_{best_n_components:d}').replace('.', '-')+'.pkl'
+                                 f'ad_1_cv_0_ri_{fold:d}_ld_3_ne_1500_fiton_zT_n_{n_components:d}').replace('.', '-')+'.pkl'
                     with open(path['exp_repeat_init_gmm'] / gmm_fname, 'rb') as fid:
                         gmm = pickle.load(fid)
                         X['ccT_lbl'] = gmm.predict(X['zT'])
                         X['ccE_lbl'] = gmm.predict(X['zE'])
-                        t_lbl, e_lbl = relabel_gmm_clusters(
-                            X=X, datadict=O.copy(), best_n_components=best_n_components)
+                        t_lbl, e_lbl = relabel_gmm_clusters(X=X, datadict=O.copy(), n_components=n_components)
                         CVdict[fold]['ccT_lbl_matched'], CVdict[fold]['ccE_lbl_matched'] = t_lbl, e_lbl
                 del X
 
@@ -219,7 +224,7 @@ def load_summary_files(data_type='NM_cc', key_list=['XrE', 'XrT', 'zE', 'zT', 't
     return CVdict
 
 
-def relabel_gmm_clusters(X:Dict, datadict: Dict, best_n_components:int):
+def relabel_gmm_clusters(X:Dict, datadict: Dict, n_components:int):
     """Given a collection of T and E clusters, finds the best match with  
     reference taxonomy labels (ordered nbased on the hierarchical tree) and 
     relabels the clusters with that order.
@@ -227,7 +232,7 @@ def relabel_gmm_clusters(X:Dict, datadict: Dict, best_n_components:int):
     Args:
         X (Dict): Contains predictions of the coupled autoencoder network
         datadict (Dict): various dataset fields
-        best_n_components (int): [description]
+        n_components (int): Number of components in the gmm fit
 
     Returns:
         ccT_lbl_matched, ccE_lbl_matched: Labels for the T and E samples that are an optimal 
@@ -246,17 +251,17 @@ def relabel_gmm_clusters(X:Dict, datadict: Dict, best_n_components:int):
     C = contingency(a=datadict['cluster'][X['train_ind']],
                     b=X['ccT_lbl'][X['train_ind']],
                     unique_a=datadict['unique_sorted_t_types'].copy(),
-                    unique_b=np.arange(best_n_components))
+                    unique_b=np.arange(n_components))
 
     #Hungarian algorithm assignments:
     row_ind, col_ind = linear_sum_assignment(-C)
     C_ordered = C[:, col_ind]
-    order_y = np.arange(0, best_n_components)[col_ind]
+    order_y = np.arange(0, n_components)[col_ind]
 
     ccT_lbl_matched = X['ccT_lbl'].copy()
     ccE_lbl_matched = X['ccE_lbl'].copy()
 
-    for i in range(best_n_components):
+    for i in range(n_components):
         ind = X['ccT_lbl'] == order_y[i]
         ccT_lbl_matched[ind] = i
 
@@ -302,6 +307,3 @@ def taxonomy_assignments(initial_labels, datadict: Dict, n_required_classes: int
         updated_labels[updated_labels == orig] = new
 
     return updated_labels, n_remain_classes
-
-
-
