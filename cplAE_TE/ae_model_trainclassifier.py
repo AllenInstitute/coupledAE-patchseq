@@ -1,7 +1,6 @@
 import argparse
 import tensorflow as tf
 from ae_model_def import Model_E_classifier
-from data_funcs import TE_get_splits_45
 import scipy.io as sio
 import numpy as np
 import csv
@@ -249,7 +248,6 @@ def main(batchsize=200, cvfold=0, Edat = 'pcifpx',fiton='ttype',stratify_by='tty
             _, val_pred = model((val_E_dat, val_E_cat, val_weights), train_E=False)
             val_pred = val_pred.numpy()
             val_pred = (val_pred == np.max(val_pred,axis=1,keepdims=True)).astype(int)
-            #val_acc = (np.sum(np.multiply(val_pred,val_E_cat))/val_pred.shape[0])
             val_acc = np.mean(np.sum(np.multiply(val_pred,val_E_cat),axis=0)/np.sum(val_E_cat,axis=0))
             val_log_name, val_log_values = report_losses(model=model, epoch=epoch, acc=val_acc, datatype='val_', verbose=True)
 

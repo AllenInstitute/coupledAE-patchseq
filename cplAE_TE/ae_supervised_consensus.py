@@ -1,18 +1,13 @@
 import numpy as np
-import pandas as pd
 import scipy.io as sio
-import matplotlib.pyplot as plt
-import seaborn as sns
 import json
-from tqdm import tqdm
 from pathlib import Path
-from refactor.utils.tree_helpers import get_merged_ordered_classes
+from cplAE_TE.utils.tree_helpers import get_merged_ordered_classes
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as QDA
 from sklearn.metrics import adjusted_rand_score,adjusted_mutual_info_score
 
 from sklearn.model_selection import StratifiedKFold
-from refactor.utils.compute import contingency
-from refactor.utils.plots import matrix_scatterplot
+from cplAE_TE.utils.compute import contingency
 
 representation_pth = '/home/rohan/Remote-AI/dat/result/TE_NM/'
 origdata_pth = Path('./refactor/data/proc/PS_v5_beta_0-4_pc_scaled_ipfx_eqTE.mat')
