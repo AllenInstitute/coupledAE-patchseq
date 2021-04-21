@@ -37,13 +37,18 @@ def get_paths(warn=True, write_toml=False):
             print(f'File not found: {path[f]}')
 
     # Paths to data from different experiments
-    #remote_path = Path("/home/rohan/Remote-AI/dat/result")
+    # remote_path = Path("/home/rohan/Remote-AI/dat/result")
     remote_path = Path("/Users/fruity/Dropbox/AllenInstitute/CellTypes/dat/proc")
     path['exp_hparam'] = remote_path / "TE_NM/"
     path['exp_hparam_log'] = remote_path / "TE_NM/logs/"
     path['exp_kfold'] = remote_path / "TE_NM/"
     path['exp_repeat_init'] = remote_path / "TE_NM_cc/"
     path['exp_repeat_init_gmm'] = remote_path / "TE_NM_cc/gmm_model_select_cv_0/"
+
+    # Paths to updated dataset (revised version, Gouwens et al. 2021)
+    v2_path = Path("/Users/fruity/Dropbox/AllenInstitute/CellTypes/dat/raw/patchseq-inh/")
+    path['v2_spc_names'] = v2_path / "spca_components_used_mMET_revision_Apr2020.json"
+    path['v2_spc_loadings'] = v2_path / "spca_loadings_mMET_revision_Apr2020_v2.pkl"
     
     for f in ['exp_hparam', 'exp_hparam_log', 'exp_kfold', 'exp_repeat_init', 'exp_repeat_init_gmm']:
         if (not(path[f].is_dir()) and warn):
@@ -307,3 +312,5 @@ def taxonomy_assignments(initial_labels, datadict: Dict, n_required_classes: int
         updated_labels[updated_labels == orig] = new
 
     return updated_labels, n_remain_classes
+
+
