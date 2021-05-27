@@ -1,13 +1,21 @@
-import pdb
+# Architectures and loss functions used in the paper. 
+# Potential improvements not explored published version: 
+# - Remove redundant Bias (use_bias=False) in the Dense layer before BatchNormalization layer
+# - Add regularization and use 'elu' activation for first Dense layer of Encoder_T
+# - Add regularization and use 'elu' activation for all layers of Encoder_E and Decoder_E
 
+import numpy as np
 import tensorflow as tf
-from tensorflow import keras
+from tensorflow.python.keras import Model
 from tensorflow.python.keras import backend as K
+from tensorflow.python.keras import regularizers
+from tensorflow.python.keras.layers import (BatchNormalization, Dense, Dropout,Layer)
+from tensorflow.python.keras.losses import CategoricalCrossentropy
 from tensorflow.python.keras.utils import tf_utils
 from tensorflow.python.ops import array_ops
 
 
-class Encoder_T(keras.layers.Layer):
+class Encoder_T(Layer):
     """
     Encoder for transcriptomic data
     
@@ -22,17 +30,16 @@ class Encoder_T(keras.layers.Layer):
                  latent_dim=3,
                  intermediate_dim=50,
                  name='Encoder_T',
-                 dtype=tf.float32,
                  **kwargs):
 
         super(Encoder_T, self).__init__(name=name, **kwargs)
-        self.drp = keras.layers.Dropout(rate=dropout_rate)
-        self.fc0 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc0')
-        self.fc1 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc1')
-        self.fc2 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc2')
-        self.fc3 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc3')
-        self.fc4 = keras.layers.Dense(latent_dim, activation='linear', name=name+'fc4')
-        self.bn = keras.layers.BatchNormalization(scale=False, center=False, epsilon=1e-10, momentum=0.05, name=name+'BN')
+        self.drp = Dropout(rate=dropout_rate)
+        self.fc0 = Dense(intermediate_dim, activation='relu', name=name+'fc0')
+        self.fc1 = Dense(intermediate_dim, activation='relu', name=name+'fc1')
+        self.fc2 = Dense(intermediate_dim, activation='relu', name=name+'fc2')
+        self.fc3 = Dense(intermediate_dim, activation='relu', name=name+'fc3')
+        self.fc4 = Dense(latent_dim, activation='linear', name=name+'fc4')
+        self.bn = BatchNormalization(scale=False, center=False, epsilon=1e-10, momentum=0.05, name=name+'BN')
         return
 
     def call(self, inputs, training=True):
@@ -46,7 +53,7 @@ class Encoder_T(keras.layers.Layer):
         return z
 
 
-class Decoder_T(keras.layers.Layer):
+class Decoder_T(Layer):
     """
     Decoder for transcriptomic data
 
@@ -59,15 +66,14 @@ class Decoder_T(keras.layers.Layer):
                  output_dim,
                  intermediate_dim=50,
                  name='Decoder_T',
-                 dtype=tf.float32,
                  **kwargs):
         
         super(Decoder_T, self).__init__(name=name, **kwargs)
-        self.fc0 = keras.layers.Dense(intermediate_dim, activation='relu', name='fc0')
-        self.fc1 = keras.layers.Dense(intermediate_dim, activation='relu', name='fc1')
-        self.fc2 = keras.layers.Dense(intermediate_dim, activation='relu', name='fc2')
-        self.fc3 = keras.layers.Dense(intermediate_dim, activation='relu', name='fc3')
-        self.Xout = keras.layers.Dense(output_dim, activation='relu', name='Xout')
+        self.fc0 = Dense(intermediate_dim, activation='relu', name='fc0')
+        self.fc1 = Dense(intermediate_dim, activation='relu', name='fc1')
+        self.fc2 = Dense(intermediate_dim, activation='relu', name='fc2')
+        self.fc3 = Dense(intermediate_dim, activation='relu', name='fc3')
+        self.Xout = Dense(output_dim, activation='relu', name='Xout')
         return
 
     def call(self, inputs, training=True):
@@ -79,9 +85,9 @@ class Decoder_T(keras.layers.Layer):
         return x
 
 
-class Encoder_E(keras.layers.Layer):
+class Encoder_E(Layer):
     """
-    Decoder for electrophysiology data
+    Encoder for electrophysiology data
     
     Args:
         gaussian_noise_sd: std of gaussian noise injection if training=True
@@ -101,13 +107,13 @@ class Encoder_E(keras.layers.Layer):
         
         super(Encoder_E, self).__init__(name=name, **kwargs)
         self.gnoise = WeightedGaussianNoise(stddev=gaussian_noise_sd)
-        self.drp = keras.layers.Dropout(rate=dropout_rate)
-        self.fc0 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc0')
-        self.fc1 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc1')
-        self.fc2 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc2')
-        self.fc3 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc3')
-        self.fc4 = keras.layers.Dense(latent_dim, activation='linear', name=name+'fc4')
-        self.bn = keras.layers.BatchNormalization(scale=False, center=False, epsilon=1e-10, momentum=0.05, name=name+'BN')
+        self.drp = Dropout(rate=dropout_rate)
+        self.fc0 = Dense(intermediate_dim, activation='relu', name=name+'fc0')
+        self.fc1 = Dense(intermediate_dim, activation='relu', name=name+'fc1')
+        self.fc2 = Dense(intermediate_dim, activation='relu', name=name+'fc2')
+        self.fc3 = Dense(intermediate_dim, activation='relu', name=name+'fc3')
+        self.fc4 = Dense(latent_dim, activation='linear', name=name+'fc4')
+        self.bn = BatchNormalization(scale=False, center=False, epsilon=1e-10, momentum=0.05, name=name+'BN')
         return
 
     def call(self, inputs, training=True):
@@ -121,9 +127,9 @@ class Encoder_E(keras.layers.Layer):
         z = self.bn(x, training=training)
         return z
 
-class Decoder_E(keras.layers.Layer):
+class Decoder_E(Layer):
     """
-    Initializes the Encoder for electrophysiology data.
+    Decoder for electrophysiology data
 
     Args:
         output_dim: Should be same as input dim if using as an autoencoder
@@ -139,12 +145,12 @@ class Decoder_E(keras.layers.Layer):
                  **kwargs):
    
         super(Decoder_E, self).__init__(name=name, **kwargs)
-        self.fc0 = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc0')
-        self.fc1 = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc1')
-        self.fc2 = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc2')
-        self.fc3 = keras.layers.Dense(intermediate_dim, activation='relu',name=name+'fc3')
-        self.drp = keras.layers.Dropout(rate=0.1) 
-        self.Xout = keras.layers.Dense(output_dim, activation='linear',name=name+'Xout')
+        self.fc0 = Dense(intermediate_dim, activation='relu',name=name+'fc0')
+        self.fc1 = Dense(intermediate_dim, activation='relu',name=name+'fc1')
+        self.fc2 = Dense(intermediate_dim, activation='relu',name=name+'fc2')
+        self.fc3 = Dense(intermediate_dim, activation='relu',name=name+'fc3')
+        self.drp = Dropout(rate=0.1) 
+        self.Xout = Dense(output_dim, activation='linear',name=name+'Xout')
         return
 
     def call(self, inputs, training=True):
@@ -157,36 +163,35 @@ class Decoder_E(keras.layers.Layer):
         return x
 
 
-class Model_TE(tf.keras.Model):
+class Model_TE(Model):
     """
-    Coupled autoencoder
+    Coupled autoencoder model (no augmentation for cross modal reconstructions)
 
     Args:
-        T_output_dim: n(genes)
-        E_output_dim: n(features)
+        T_dim: n(genes)
+        E_dim: n(features)
         T_intermediate_dim: units in hidden layers of T autoencoder
-        E_intermediate_dim: units in hidden layers of T autoencoder
+        E_intermediate_dim: units in hidden layers of E autoencoder
         T_dropout: dropout probability for 
         E_gnoise_sd: gaussian noise std for E data
         E_dropout: dropout for E data
         latent_dim: dim for representations
+        train_T: bool: set T encoder and decoder to training mode
+        train_E: bool: set T encoder and decoder to training mode
         name: TE
-
-    call Args:
-        train_T: augment T data
-        train_E: augment E data
-    
     """
 
     def __init__(self,
-               T_output_dim,
-               E_output_dim,
+               T_dim,
+               E_dim,
                T_intermediate_dim=50,
                E_intermediate_dim=40,
                T_dropout=0.5,
                E_gnoise_sd=0.05,
                E_dropout=0.1,
                latent_dim=3,
+               train_T=True,
+               train_E=True,
                name='TE',
                **kwargs):
   
@@ -202,39 +207,36 @@ class Model_TE(tf.keras.Model):
                                    intermediate_dim=E_intermediate_dim,
                                    name='Encoder_E')
 
-        self.decoder_T = Decoder_T(output_dim=T_output_dim,
+        self.decoder_T = Decoder_T(output_dim=T_dim,
                                    intermediate_dim=T_intermediate_dim,
                                    name='Decoder_T')
 
-        self.decoder_E = Decoder_E(output_dim=E_output_dim,
+        self.decoder_E = Decoder_E(output_dim=E_dim,
                                    intermediate_dim=E_intermediate_dim,
                                    name='Decoder_E')
 
-    def call(self, inputs, train_T=True, train_E=True):
+        self.train_T = train_T
+        self.train_E = train_E
+
+    def call(self, inputs):
         #T arm
-        zT = self.encoder_T(inputs[0],training=train_T)
-        zE = self.encoder_E(inputs[1],training=train_E)
+        zT = self.encoder_T(inputs[0], training=self.train_T)
+        XrT = self.decoder_T(zT, training=self.train_T)
 
-        XrT = self.decoder_T(zT,training=train_T)
-        XrE = self.decoder_E(zE,training=train_E)
-        return zT,zE,XrT,XrE
+        #E arm
+        zE = self.encoder_E(inputs[1], training=self.train_E)
+        XrE = self.decoder_E(zE, training=self.train_E)
+        return zT, zE, XrT, XrE
 
 
-class WeightedGaussianNoise(keras.layers.Layer):
-    """Custom additive zero-centered Gaussian noise. Std is weighted.
+class WeightedGaussianNoise(Layer):
+    """Custom additive zero-centered Gaussian noise. Standard deviation of noise added to each input feature can be specified with `stddev`. 
 
     Args:
-        stddev: Can be a scalar or vector
-    call args:
-        inputs: Input tensor (of any rank).
-        training: Python boolean indicating whether the layer should behave in
-        training mode (adding noise) or in inference mode (doing nothing).
-    Input shape:
-        Arbitrary. Use the keyword argument `input_shape`
-        (tuple of integers, does not include the samples axis)
-        when using this layer as the first layer in a model.
-    Output shape:
-        Same shape as input.
+        stddev: scalar, or vector with same length as number of input features
+    Call args:
+        inputs: input tensor
+        training: bool : set training mode
     """
 
     def __init__(self, stddev, **kwargs):
@@ -260,23 +262,26 @@ class WeightedGaussianNoise(keras.layers.Layer):
         return input_shape
 
 
-class Model_TE_aug_decoders(tf.keras.Model):
+class Model_TE(Model):
     """Coupled autoencoder model
 
     Args:
-        T_output_dim: Number of genes in T data
-        E_output_dim: Number of features in E data
+        T_dim: Number of genes in T data
+        E_dim: Number of features in E data
         T_intermediate_dim: hidden layer dims for T model
         E_intermediate_dim: hidden layer dims for E model
         T_dropout: dropout for T data
         E_gnoise_sd: gaussian noise std for E data
         E_dropout: dropout for E data
         latent_dim: dim for representations
+        train_T (bool): training/inference mode for E autoencoder
+        train_E (bool): training/inference mode for E autoencoder
+        augment_decoders (bool): augment decoder with cross modal representation if True
         name: TE
     """
     def __init__(self,
-               T_output_dim,
-               E_output_dim,
+               T_dim,
+               E_dim,
                T_intermediate_dim=50,
                E_intermediate_dim=40,
                alpha_T=1.0,
@@ -287,38 +292,45 @@ class Model_TE_aug_decoders(tf.keras.Model):
                E_gnoise_sd=0.05,
                E_dropout=0.1,
                latent_dim=3,
+               train_T=True,
+               train_E=True, 
+               augment_decoders=True,
                name='TE',
                **kwargs):
 
-        super(Model_TE_aug_decoders, self).__init__(name=name, **kwargs)
+        super(Model_TE, self).__init__(name=name, **kwargs)
+        self.T_dim = T_dim
+        self.E_dim = E_dim
+
         self.alpha_T = tf.constant(alpha_T,dtype=tf.float32)
         self.alpha_E = tf.constant(alpha_E,dtype=tf.float32)
         self.lambda_TE = tf.constant(lambda_TE,dtype=tf.float32)
 
         E_gnoise_sd_weighted = E_gauss_noise_wt*E_gnoise_sd
         self.encoder_T = Encoder_T(dropout_rate=T_dropout,latent_dim=latent_dim, intermediate_dim=T_intermediate_dim, name='Encoder_T')
-        self.encoder_E = Encoder_E(gaussian_noise_sd=E_gnoise_sd_weighted, dropout_rate=E_dropout, latent_dim=latent_dim, intermediate_dim=E_intermediate_dim, name='Encoder_E')
+        self.encoder_E = Encoder_E(gaussian_noise_sd=E_gnoise_sd_weighted, dropout_rate=E_dropout, 
+                                   latent_dim=latent_dim, intermediate_dim=E_intermediate_dim, name='Encoder_E')
         
-        self.decoder_T = Decoder_T(output_dim=T_output_dim, intermediate_dim=T_intermediate_dim, name='Decoder_T')
-        self.decoder_E = Decoder_E(output_dim=E_output_dim, intermediate_dim=E_intermediate_dim, name='Decoder_E')
+        self.decoder_T = Decoder_T(output_dim=T_dim, intermediate_dim=T_intermediate_dim, name='Decoder_T')
+        self.decoder_E = Decoder_E(output_dim=E_dim, intermediate_dim=E_intermediate_dim, name='Decoder_E')
 
-    def call(self, inputs, train_T=True, train_E=True, augment_decoders=True):
-        """
-        Args:
-            train_T: training/inference mode for T autoencoder
-            train_E: training/inference mode for E autoencoder
-            augment_decoders: augment decoder with cross modal representation if True
-        """
+        self.train_T = train_T
+        self.train_E = train_E
+        self.augment_decoders = augment_decoders
+        return
+
+
+    def call(self, inputs):
         #T arm forward pass
         XT = inputs[0]
-        zT = self.encoder_T(XT,training=train_T)
-        XrT = self.decoder_T(zT,training=train_T)
+        zT = self.encoder_T(XT,training=self.train_T)
+        XrT = self.decoder_T(zT,training=self.train_T)
         
         #E arm forward pass
         XE = tf.where(tf.math.is_nan(inputs[1]),x=0.0,y=inputs[1]) #Mask nans
         maskE = tf.where(tf.math.is_nan(inputs[1]),x=0.0,y=1.0)    #Get mask to ignore error contribution
-        zE = self.encoder_E(XE,training=train_E)
-        XrE = self.decoder_E(zE,training=train_E)
+        zE = self.encoder_E(XE,training=self.train_E)
+        XrE = self.decoder_E(zE,training=self.train_E)
 
         #Loss calculations
         mse_loss_T = tf.reduce_mean(tf.math.squared_difference(XT, XrT))
@@ -331,9 +343,11 @@ class Model_TE_aug_decoders(tf.keras.Model):
         self.add_loss(self.lambda_TE*cpl_loss_TE)
 
         #Cross modal reconstructions - treat zE and zT as constants for this purpose
-        if augment_decoders:
-            XrT_aug = self.decoder_T(tf.stop_gradient(zE),training=train_T)
-            XrE_aug = self.decoder_E(tf.stop_gradient(zT),training=train_E)
+        mse_loss_T_aug = 0
+        mse_loss_E_aug = 0
+        if self.augment_decoders:
+            XrT_aug = self.decoder_T(tf.stop_gradient(zE),training=self.train_T)
+            XrE_aug = self.decoder_E(tf.stop_gradient(zT),training=self.train_E)
             mse_loss_T_aug = tf.reduce_mean(tf.math.squared_difference(XT, XrT_aug))
             mse_loss_E_aug = tf.reduce_mean(tf.multiply(tf.math.squared_difference(XE, XrE_aug),maskE))
             self.add_loss(self.alpha_T*mse_loss_T_aug)
@@ -343,8 +357,21 @@ class Model_TE_aug_decoders(tf.keras.Model):
         self.mse_loss_T = mse_loss_T
         self.mse_loss_E = mse_loss_E
         self.mse_loss_TE = tf.reduce_mean(tf.math.squared_difference(zT, zE))
+        self.mse_loss_T_aug = mse_loss_T_aug
+        self.mse_loss_E_aug = mse_loss_E_aug
         return zT,zE,XrT,XrE
-        
+
+    def buildme(model):
+        """
+        Initialize the model with this if loading saved weights. 
+        """
+        x = tf.constant(np.random.rand(1, model.T_dim), dtype=tf.float32)
+        y = tf.constant(np.random.rand(1, model.E_dim), dtype=tf.float32)
+        model.train_E = False
+        model.train_T = False
+        _, _, _, _ = model((x, y))
+        return model
+
 
 def min_var_loss(zi, zj, Wij=None):
     """
@@ -381,9 +408,9 @@ def min_var_loss(zi, zj, Wij=None):
     return loss_ij
 
 
-class Encoder_E_classifier(keras.layers.Layer):
+class Encoder_E_classifier(Layer):
     """
-    Decoder for electrophysiology data
+    Encoder for electrophysiology data, used for classification.
     
     Args:
         gaussian_noise_sd: std of gaussian noise injection if training=True
@@ -398,18 +425,17 @@ class Encoder_E_classifier(keras.layers.Layer):
                  latent_dim=3,
                  intermediate_dim=40,
                  name='Encoder_E',
-                 dtype=tf.float32,
                  **kwargs):
         
         super(Encoder_E_classifier, self).__init__(name=name, **kwargs)
         self.gnoise = WeightedGaussianNoise(stddev=gaussian_noise_sd)
-        self.drp = keras.layers.Dropout(rate=dropout_rate)
-        self.fc0 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc0', kernel_regularizer=tf.keras.regularizers.l2(0.1))
-        self.fc1 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc1', kernel_regularizer=tf.keras.regularizers.l2(0.1))
-        self.fc2 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc2', kernel_regularizer=tf.keras.regularizers.l2(0.1))
-        self.fc3 = keras.layers.Dense(intermediate_dim, activation='relu', name=name+'fc3')
-        self.fc4 = keras.layers.Dense(latent_dim, activation='linear',use_bias=False, name=name+'fc4')
-        self.bn = keras.layers.BatchNormalization(scale=False, center=False, epsilon=1e-10, momentum=0.05, name=name+'BN')
+        self.drp = Dropout(rate=dropout_rate)
+        self.fc0 = Dense(intermediate_dim, activation='relu', name=name+'fc0', kernel_regularizer=regularizers.l2(0.1))
+        self.fc1 = Dense(intermediate_dim, activation='relu', name=name+'fc1', kernel_regularizer=regularizers.l2(0.1))
+        self.fc2 = Dense(intermediate_dim, activation='relu', name=name+'fc2', kernel_regularizer=regularizers.l2(0.1))
+        self.fc3 = Dense(intermediate_dim, activation='relu', name=name+'fc3')
+        self.fc4 = Dense(latent_dim, activation='linear',use_bias=False, name=name+'fc4')
+        self.bn = BatchNormalization(scale=False, center=False, epsilon=1e-10, momentum=0.05, name=name+'BN')
         return
 
     def call(self, inputs, training=True):
@@ -423,8 +449,9 @@ class Encoder_E_classifier(keras.layers.Layer):
         z = self.bn(x, training=training)
         return z
 
-class Model_E_classifier(tf.keras.Model):
-    """E Encoder for classification
+
+class Model_E_classifier(Model):
+    """Model to classify electrophysiological profiles into transcriptomic taxonomy classes.
 
     Args:
         E_output_dim: Number of features in E data
@@ -434,27 +461,28 @@ class Model_E_classifier(tf.keras.Model):
         latent_dim: dim for representations
         name: E_classifier
     """
-    def __init__(self,
-               E_output_dim,
-               E_intermediate_dim=40,
-               E_gauss_noise_wt = 1.0,
-               E_gnoise_sd=0.05,
-               E_dropout=0.1,
-               latent_dim=3,
-               n_labels=50,
-               name='E_classifier',
-               **kwargs):
 
-        super(Model_E_classifier, self).__init__(name=name,**kwargs)
+    def __init__(self,
+                 E_output_dim,
+                 E_intermediate_dim=40,
+                 E_gauss_noise_wt=1.0,
+                 E_gnoise_sd=0.05,
+                 E_dropout=0.1,
+                 latent_dim=3,
+                 n_labels=50,
+                 name='E_classifier',
+                 **kwargs):
+
+        super(Model_E_classifier, self).__init__(name=name, **kwargs)
         self.n_labels = n_labels
         E_gnoise_sd_weighted = E_gauss_noise_wt*E_gnoise_sd
         self.encoder_E = Encoder_E_classifier(gaussian_noise_sd=E_gnoise_sd_weighted,
-                                   dropout_rate=E_dropout,
-                                   latent_dim=latent_dim,
-                                   intermediate_dim=E_intermediate_dim,
-                                   name='E_encoder')
-        self.softmax_E = tf.keras.layers.Dense(n_labels, activation="softmax", name='predictions')
-        self.cce = tf.keras.losses.CategoricalCrossentropy()
+                                              dropout_rate=E_dropout,
+                                              latent_dim=latent_dim,
+                                              intermediate_dim=E_intermediate_dim,
+                                              name='E_encoder')
+        self.softmax_E = tf.Dense(n_labels, activation="softmax", name='predictions')
+        self.cce = CategoricalCrossentropy()
 
 
     def call(self, inputs, train_E=True):
@@ -464,7 +492,7 @@ class Model_E_classifier(tf.keras.Model):
             train_E: training/inference mode for E autoencoder
         """
         #process input
-        XE = tf.where(tf.math.is_nan(inputs[0]),x=0.0,y=inputs[0]) #nans --> zeros
+        XE = tf.where(tf.math.is_nan(inputs[0]),x=0.0,y=inputs[0]) # nans --> zeros
         cTrue = inputs[1]
         sample_weights = inputs[2]
 
