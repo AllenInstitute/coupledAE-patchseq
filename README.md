@@ -21,12 +21,12 @@ Consistent identification of neurons in different experimental modalities is a k
 ### Data
 
  - [Allen Institute Patch-seq data browser](https://knowledge.brain-map.org/data/1HEYEW7GMUKWIQW37BO/specimens)
- - `/data/proc/` contains the processed dataset used for Gala et al. 2021.
- - see `data_proc_T.ipynb` and `data_proc_E.ipynb` for pre-processing steps.
+ - `data/proc/` contains the processed dataset used for Gala et al. 2021.
+ - see `notebooks/data_proc_T.ipynb` and `notebooks/data_proc_E.ipynb` for pre-processing steps.
 
 ### Code
 
- - create a `conda` environment, and install depencies (see `requirements.yml`)
+ - create a `conda` environment, and install depencies (see `requirements.yml`). The models can be run with any `tensorflow ` versions `2.1` to `2.5`
  - clone this repository.
  - navigate to the location with `setup.py` in this reposiory, and use `pip install -e .`
  - use `cplAE_TE/train.py` to start training a model
