@@ -21,7 +21,8 @@ Consistent identification of neurons in different experimental modalities is a k
 ### Data
 
  - [Allen Institute Patch-seq data browser](https://knowledge.brain-map.org/data/1HEYEW7GMUKWIQW37BO/specimens)
- - [Processed data used as input for coupled autoencoders](https://www.dropbox.com/s/nmhd3wzw4re9ve7/PS_v5_beta_0-4_pc_scaled_ipxf_eqTE.mat?dl=0)
+ - `/data/proc/` contains the processed dataset used for Gala et al. 2021.
+ - see `data_proc_T.ipynb` and `data_proc_E.ipynb` for pre-processing steps.
 
 ### Code
 
