@@ -71,7 +71,7 @@ def load_dataset(min_sample_thr=10):
     Returns:
         data(Dict)
     """
-    path = get_paths(warn=False,write_toml=False)
+    path = get_paths(warn=False, write_toml=False)
     data = sio.loadmat(path['proc_dataset'], squeeze_me=True)
     del_keys = [key for key in data.keys() if '__' in key]
     for key in del_keys:
