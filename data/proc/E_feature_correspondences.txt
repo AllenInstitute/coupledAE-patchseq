@@ -1,0 +1,34 @@
+# Potential correspondences between Electrophysiological features across Gouwens et al. and Scala et al. datasets:
+L = {}
+L['AP amplitude (mV)']              = ['short sq. AP1 peak v', 'long sq. AP1 peak v']+ \
+                                      ['spc0 spk. peak v', 'spc1 spk. peak v']+ \
+                                      ['spc0 first AP v', 'spc1 first AP v', 'spc2 first AP v', 'spc3 first AP v', 'spc4 first AP v']
+L['AP amplitude adaptation index']  = ['spc0 spk. peak v', 'spc1 spk. peak v']
+L['AP amplitude average adaptation index'] = ['spc0 spk. peak v', 'spc1 spk. peak v']
+L['AP threshold (mV)']              = ['long sq. AP1 threshold v','short sq. AP1 thr. v']
+L['AP width (ms)']                  = ['short sq. AP1 width', 'long sq. AP1 width']+['spc0 spk. width','spc1 spk. width']
+L['Afterdepolarization (mV)']       = ['spc0 first AP v', 'spc1 first AP v', 'spc2 first AP v', 'spc3 first AP v', 'spc4 first AP v', 'spc0 first AP dv', 'spc1 first AP dv', 'spc2 first AP dv', 'spc3 first AP dv', 'spc4 first AP dv', 'spc5 first AP dv'] + ['spc0 ISI shape', 'spc1 ISI shape', 'spc2 ISI shape']
+L['Afterhyperpolarization (mV)']    = ['short sq. AP1 fast trough v', 'long sq. AP1 fast trough v'] + \
+                                      ['spc0 ISI shape', 'spc1 ISI shape', 'spc2 ISI shape'] + \
+                                      ['spc0 spk. fast trough v', 'spc1 spk. fast trough v']
+L['ISI Fano factor']                = ['spc0 inst. freq.', 'spc1 inst. freq.', 'spc2 inst. freq.', 'spc3 inst. freq.', 'spc4 inst. freq.', 'spc5 inst. freq.'] + \
+                                      ['spc0 inst. freq. norm', 'spc1 inst. freq. norm', 'spc2 inst. freq. norm', 'spc3 inst. freq. norm', 'spc4 inst. freq. norm', 'spc5 inst. freq. norm', 'spc6 inst. freq. norm',]
+L['ISI adaptation index']           = ['spc0 inst. freq.', 'spc1 inst. freq.', 'spc2 inst. freq.', 'spc3 inst. freq.', 'spc4 inst. freq.', 'spc5 inst. freq.'] + \
+                                      ['spc0 inst. freq. norm', 'spc1 inst. freq. norm', 'spc2 inst. freq. norm', 'spc3 inst. freq. norm', 'spc4 inst. freq. norm', 'spc5 inst. freq. norm', 'spc6 inst. freq. norm']
+L['ISI average adaptation index']   = ['spc0 inst. freq.', 'spc1 inst. freq.', 'spc2 inst. freq.', 'spc3 inst. freq.', 'spc4 inst. freq.', 'spc5 inst. freq.'] + \
+                                      ['spc0 inst. freq. norm', 'spc1 inst. freq. norm', 'spc2 inst. freq. norm', 'spc3 inst. freq. norm', 'spc4 inst. freq. norm', 'spc5 inst. freq. norm', 'spc6 inst. freq. norm',]
+L['ISI coefficient of variation']   = ['spc0 inst. freq.', 'spc1 inst. freq.', 'spc2 inst. freq.', 'spc3 inst. freq.', 'spc4 inst. freq.', 'spc5 inst. freq.'] + \
+                                      ['spc0 inst. freq. norm', 'spc1 inst. freq. norm', 'spc2 inst. freq. norm', 'spc3 inst. freq. norm', 'spc4 inst. freq. norm', 'spc5 inst. freq. norm', 'spc6 inst. freq. norm',]
+L['Input resistance (MOhm)']        = ['input resistance', 'spc0 step subthr.' ,'spc1 step subthr.']
+L['Latency (ms)']                   = ['long sq. latency']
+L['Max number of APs']              = ['spc0 inst. freq.', 'spc1 inst. freq.', 'spc2 inst. freq.', 'spc3 inst. freq.', 'spc4 inst. freq.', 'spc5 inst. freq.']
+L['Membrane time constant (ms)']    = ['tau'] + ['spc0 subthr. norm', 'spc1 subthr. norm', 'spc2 subthr. norm', 'spc3 subthr. norm']
+L['Resting membrane potential (mV)']= ['v baseline', 'spc0 subthr. norm']
+L['Rheobase (pA)']                  = ['rheobase i'] + ['input resistance', 'spc0 step subthr.' ,'spc1 step subthr.']
+L['Sag area (mV*s)']                = ['spc0 subthr. norm', 'spc1 subthr. norm', 'spc2 subthr. norm', 'spc3 subthr. norm']
+L['Sag ratio']                      = ['sag nearest minus 100'] + ['spc0 subthr. norm', 'spc1 subthr. norm', 'spc2 subthr. norm', 'spc3 subthr. norm']
+L['Sag time (s)']                   = ['spc0 subthr. norm', 'spc1 subthr. norm', 'spc2 subthr. norm', 'spc3 subthr. norm']
+L['Spike frequency adaptation']     = ['spc0 inst. freq.', 'spc1 inst. freq.', 'spc2 inst. freq.', 'spc3 inst. freq.', 'spc4 inst. freq.', 'spc5 inst. freq.'] + ['spc0 inst. freq. norm', 'spc1 inst. freq. norm', 'spc2 inst. freq. norm', 'spc3 inst. freq. norm', 'spc4 inst. freq. norm', 'spc5 inst. freq. norm', 'spc6 inst. freq. norm']
+L['Upstroke-to-downstroke ratio']   = ['long sq. AP1 up-down ratio', 'short sq. AP1 up-down ratio'] + \
+                                      ['spc0 first AP v', 'spc1 first AP v', 'spc2 first AP v', 'spc3 first AP v', 'spc4 first AP v', 'spc0 first AP dv', 'spc1 first AP dv', 'spc2 first AP dv', 'spc3 first AP dv', 'spc4 first AP dv', 'spc5 first AP dv'] + \
+                                      ['spc0 spk. up-down ratio', 'spc1 spk. up-down ratio']
