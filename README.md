@@ -31,8 +31,6 @@ Consistent identification of neurons in different experimental modalities is a k
  - navigate to the location with `setup.py` in this reposiory, and use `pip install -e .` 
  - use `cplAE_TE/train.py` to start training a model.
 
-⚠️`Caution`: This repository is being refactored. Please contact corresponding authors for specific questions about code in this repository. 
-
 You can also play around with a minimal version of the coupled autoencoders code (see `minimal` folder in this repository) hosted on a cloud environment at [CodeOcean](https://codeocean.com/capsule/6320801).
 
 
